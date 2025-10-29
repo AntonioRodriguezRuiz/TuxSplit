@@ -21,10 +21,10 @@ fn main() {
     adw::init().expect("Failed to initialize libadwaita");
 
     let app = Application::builder()
-        .application_id("org.UnixSplit.unixplit-beta")
+        .application_id("org.LunixRunTools.livesplit-gtk-beta")
         .build();
 
-    let app_state = Rc::new(RefCell::new(UnixSplit::new()));
+    let app_state = Rc::new(RefCell::new(LiveSplitGTK::new()));
 
     app.connect_activate(move |app| {
         app_state.borrow_mut().build_ui(app);
@@ -33,11 +33,11 @@ fn main() {
 }
 
 #[derive(Clone, Debug)]
-pub struct UnixSplit {
+pub struct LiveSplitGTK {
     pub timer: Rc<RefCell<Timer>>,
 }
 
-impl UnixSplit {
+impl LiveSplitGTK {
     pub fn new() -> Self {
         let mut run = Run::new();
         run.push_segment(Segment::new(""));
