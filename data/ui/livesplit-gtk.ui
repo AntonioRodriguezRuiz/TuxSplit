@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <object class="AdwClamp" id="livesplit-gtk">
+    <property name="maximum-size">300</property>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">1</property>
+        <property name="valign">3</property>
+        <property name="halign">3</property>
+        <property name="width-request">300</property>
+        <property name="spacing">20</property>
+        <child>
+          <object class="GtkBox" id="run_info">
+            <property name="orientation">1</property>
+            <property name="halign">3</property>
+            <child>
+              <object class="GtkLabel">
+                <property name="label" translatable="yes">Run Name</property>
+                <style>
+                  <class name="title-2"/>
+                </style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="label" translatable="yes">Category</property>
+                <style>
+                  <class name="heading"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkListBox" id="splits">
+            <style>
+              <class name="boxed-list"/>
+            </style>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">Red Split</property>
+                <child type="suffix">
+                  <object class="GtkLabel">
+                    <property name="label">+10.0</property>
+                    <property name="halign">3</property>
+                    <property name="valign">3</property>
+                    <style>
+                      <class name="timer"/>
+                      <class name="redsplit"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">Red Gained Split</property>
+                <child type="suffix">
+                  <object class="GtkLabel">
+                    <property name="label">+4.0</property>
+                    <property name="halign">3</property>
+                    <property name="valign">3</property>
+                    <style>
+                      <class name="timer"/>
+                      <class name="gainedredsplit"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">Green Split</property>
+                <child type="suffix">
+                  <object class="GtkLabel">
+                    <property name="label">-4.3</property>
+                    <property name="halign">3</property>
+                    <property name="valign">3</property>
+                    <style>
+                      <class name="timer"/>
+                      <class name="greensplit"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">Green Lost Split</property>
+                <child type="suffix">
+                  <object class="GtkLabel">
+                    <property name="label">-3.0</property>
+                    <property name="halign">3</property>
+                    <property name="valign">3</property>
+                    <style>
+                      <class name="timer"/>
+                      <class name="lostgreensplit"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">Gold Split</property>
+                <child type="suffix">
+                  <object class="GtkLabel">
+                    <property name="label">-5.9</property>
+                    <property name="halign">3</property>
+                    <property name="valign">3</property>
+                    <style>
+                      <class name="timer"/>
+                      <class name="goldsplit"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">Final Split</property>
+                <child type="suffix">
+                  <object class="GtkLabel">
+                    <property name="label">-</property>
+                    <property name="halign">3</property>
+                    <property name="valign">3</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkCenterBox">
+            <property name="orientation">0</property>
+            <property name="margin-end">18</property>
+            <property name="margin-start">18</property>
+            <child type="start">
+              <object class="GtkBox" id="current_split">
+                <property name="orientation">1</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">0</property>
+                    <property name="margin-top">6</property>
+                    <property name="spacing">2</property>
+                    <property name="halign">1</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Best:</property>
+                        <style>
+                          <class name="caption-heading"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">1:23.4</property>
+                        <style>
+                          <class name="caption"/>
+                          <class name="timer"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">0</property>
+                    <property name="spacing">2</property>
+                    <property name="halign">1</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">PB:</property>
+                        <style>
+                          <class name="caption-heading"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">1:26.7</property>
+                        <style>
+                          <class name="caption"/>
+                          <class name="timer"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child type="end">
+              <object class="GtkBox">
+                <child>
+                  <object class="GtkLabel" id="hour_minutes_seconds_timer">
+                    <property name="label" translatable="yes">05:12.</property>
+                    <style>
+                      <class name="bigtimer"/>
+                    </style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="milis_timer">
+                    <property name="label" translatable="yes">58</property>
+                    <property name="margin-top">14</property>
+                    <style>
+                      <class name="smalltimer"/>
+                    </style>
+                  </object>
+                </child>
+                <style>
+                  <class name="timer"/>
+                  <class name="greensplit"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
