@@ -1,0 +1,148 @@
+use livesplit_core::{
+    auto_splitting,
+    run::{parser::composite, saver::livesplit::save_timer},
+    HotkeyConfig, HotkeySystem, Run, Segment, SharedTimer, Timer, TimingMethod,
+};
+use serde::Deserialize;
+use std::{
+    fmt, fs,
+    io::Cursor,
+    path::{Path, PathBuf},
+    time::{Duration, SystemTime},
+};
+use tracing::error;
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Config {
+    #[serde(default)]
+    general: General,
+    #[serde(default)]
+    window: Window,
+    #[serde(default)]
+    hotkeys: HotkeyConfig,
+    #[serde(default)]
+    connections: Connections,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+struct General {
+    splits: Option<PathBuf>,
+    timing_method: Option<TimingMethod>,
+    comparison: Option<String>,
+    auto_splitter: Option<PathBuf>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[serde(default)]
+struct Window {
+    always_on_top: bool,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[serde(default)]
+struct Connections {
+    twitch: Option<String>,
+}
+
+impl Config {
+    pub fn parse(path: impl AsRef<Path>) -> Option<Config> {
+        let buf = fs::read(path).ok()?;
+        serde_yaml::from_slice(&buf).ok()
+    }
+
+    pub fn parse_run(&self) -> Option<Run> {
+        let path = self.general.splits.clone()?;
+        let file = fs::read(&path).ok()?;
+        let mut run = composite::parse(&file, Some(&path)).ok()?.run;
+        run.fix_splits();
+        Some(run)
+    }
+
+    pub fn parse_run_or_default(&self) -> Run {
+        self.parse_run().unwrap_or_else(|| {
+            let mut run = Run::new();
+            run.set_game_name("Game");
+            run.set_category_name("Category");
+            run.push_segment(Segment::new("Time"));
+            run
+        })
+    }
+
+    pub fn is_game_time(&self) -> bool {
+        self.general.timing_method == Some(TimingMethod::GameTime)
+    }
+
+    // pub fn set_splits_path(&mut self, path: PathBuf) {
+    //     self.general.splits = Some(path);
+    // }
+
+    pub fn create_hotkey_system(&self, timer: SharedTimer) -> Option<HotkeySystem> {
+        HotkeySystem::with_config(timer, self.hotkeys).ok()
+    }
+
+    pub fn configure_timer(&self, timer: &mut Timer) {
+        if self.is_game_time() {
+            timer.set_current_timing_method(TimingMethod::GameTime);
+        }
+        if let Some(comparison) = &self.general.comparison {
+            timer.set_current_comparison(&**comparison).ok();
+        }
+    }
+
+    pub fn save_splits(&self, timer: &Timer) {
+        if let Some(path) = &self.general.splits {
+            let mut buf = String::new();
+            let _ = save_timer(timer, &mut buf);
+            // FIXME: Don't ignore not being able to save.
+            let _ = fs::write(path, &buf);
+        }
+    }
+
+    pub fn setup_logging(&self) {
+        // TODO: Setup logging
+        // if let Some(log) = &self.log {
+        //     if let Ok(log_file) = fs::OpenOptions::new()
+        //         .create(true)
+        //         .write(true)
+        //         .append(!log.clear)
+        //         .truncate(log.clear)
+        //         .open(&log.path)
+        //     {
+        //         fern::Dispatch::new()
+        //             .format(|out, message, record| {
+        //                 out.finish(format_args!(
+        //                     "[{}][{}][{}] {}",
+        //                     humantime::format_rfc3339_seconds(SystemTime::now()),
+        //                     record.target(),
+        //                     record.level(),
+        //                     message
+        //                 ))
+        //             })
+        //             .level(log.level.unwrap_or(log::LevelFilter::Warn))
+        //             .chain(log_file)
+        //             .apply()
+        //             .ok();
+        //
+        //         #[cfg(not(debug_assertions))]
+        //         {
+        //             std::panic::set_hook(Box::new(|panic_info| {
+        //                 log::error!(target: "PANIC", "{}\n{:?}", panic_info, backtrace::Backtrace::new());
+        //             }));
+        //         }
+        //     }
+        // }
+    }
+
+    pub fn maybe_load_auto_splitter(&self, runtime: &auto_splitting::Runtime) {
+        if let Some(auto_splitter) = &self.general.auto_splitter {
+            if let Err(e) = runtime.load_script_blocking(auto_splitter.clone()) {
+                error!("Auto Splitter failed to load: {}", &e); // TODO: Create a custom error that
+                                                                // pops up in the UI
+            }
+        }
+    }
+}
