@@ -5,10 +5,8 @@ use livesplit_core::{
 };
 use serde::Deserialize;
 use std::{
-    fmt, fs,
-    io::Cursor,
+    fs,
     path::{Path, PathBuf},
-    time::{Duration, SystemTime},
 };
 use tracing::error;
 

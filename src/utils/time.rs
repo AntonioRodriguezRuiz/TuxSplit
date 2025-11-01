@@ -1,6 +1,5 @@
 use crate::config::Config;
 use livesplit_core::{TimeSpan, Timer, TimingMethod};
-use std::cmp::min;
 use time::Duration as TimeDuration;
 
 /// Default pattern used when formatting times.
@@ -40,7 +39,7 @@ pub fn format_time_span_opt(span: Option<TimeSpan>, pattern: &str) -> String {
 pub fn format_time_span(span: &TimeSpan, pattern: &str) -> String {
     // Determine sign and absolute time in milliseconds
     let total_ms = span.total_milliseconds();
-    let negative = total_ms < 0.0;
+    let _negative = total_ms < 0.0;
     let abs_ms = total_ms.abs() as i64;
 
     let hours = abs_ms / 3_600_000;
@@ -137,8 +136,21 @@ pub fn format_timer(timer: &Timer, _config: &Config) -> String {
         .current_attempt_duration()
         .to_duration()
         .checked_add(timer.run().offset().to_duration())
+        .unwrap_or_default()
+        .checked_sub(timer.get_pause_time().unwrap_or_default().to_duration())
+        .unwrap_or_default()
+        .checked_sub(if timer.current_timing_method() == TimingMethod::GameTime {
+            timer.loading_times().to_duration()
+        } else {
+            TimeDuration::ZERO
+        })
         .unwrap_or_default();
-    format_duration(&dur)
+    let out = format_duration(&dur);
+    if dur < TimeDuration::ZERO {
+        format!("-{}", out)
+    } else {
+        out
+    }
 }
 
 /// Formats a `time::Duration` using the same pattern machinery by converting to TimeSpan.

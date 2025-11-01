@@ -46,6 +46,14 @@ label {
     font-family: var(--monospace-font-family);
 }
 
+.active-timer {
+    color: #33d17a;
+}
+
+.inactive-timer {
+    color: #888888;
+}
+
 .redsplit {
     color: #ed333b;
 }

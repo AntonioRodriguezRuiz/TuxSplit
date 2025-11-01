@@ -2,27 +2,18 @@ mod config;
 mod ui;
 mod utils;
 
-use std::fs;
-use std::path::Path;
-
 use std::sync::{Arc, RwLock};
 
-use glib::ffi::g_warn_message;
-use livesplit_core::{HotkeySystem, Run, Segment, SharedTimer, Timer, TimerPhase};
-use tracing::{debug, info, warn};
+use livesplit_core::{HotkeySystem, Timer};
+use tracing::info;
 use tracing_subscriber;
 
 use adw::prelude::*;
-use adw::{Application, ApplicationWindow};
-use glib::ControlFlow::Break;
-use glib::ControlFlow::Continue;
-use gtk4::prelude::*;
-use gtk4::{
-    gdk::Display, Box as GtkBox, Builder, Button, CssProvider, Label, Orientation, Settings,
-};
+use adw::Application;
+use gtk4::{gdk::Display, CssProvider};
 
 use config::Config;
-use ui::TimerUI;
+use ui::timer::TimerUI;
 
 fn main() {
     std::env::set_var("GDK_BACKEND", "x11"); // Livesplit-core does not support Wayland global shortcut portal yet
@@ -59,7 +50,7 @@ impl LiveSplitGTK {
         let config = Config::parse("config.yaml").unwrap_or_default();
         let run = config.parse_run_or_default();
 
-        let mut timer = Timer::new(run).expect("Failed to create timer");
+        let timer = Timer::new(run).expect("Failed to create timer");
 
         let stimer = timer.into_shared();
 
