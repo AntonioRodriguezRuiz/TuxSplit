@@ -1,13 +1,11 @@
 mod config;
 mod ui;
+mod utils;
 
 use std::fs;
 use std::path::Path;
 
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
-
-// use api::api::{create, reset, split, start};
 
 use glib::ffi::g_warn_message;
 use livesplit_core::{HotkeySystem, Run, Segment, SharedTimer, Timer, TimerPhase};
@@ -19,12 +17,16 @@ use adw::{Application, ApplicationWindow};
 use glib::ControlFlow::Break;
 use glib::ControlFlow::Continue;
 use gtk4::prelude::*;
-use gtk4::{gdk::Display, Box as GtkBox, Builder, Button, CssProvider, Label, Orientation};
+use gtk4::{
+    gdk::Display, Box as GtkBox, Builder, Button, CssProvider, Label, Orientation, Settings,
+};
 
 use config::Config;
-use ui::ui::TimerUI;
+use ui::TimerUI;
 
 fn main() {
+    std::env::set_var("GDK_BACKEND", "x11"); // Livesplit-core does not support Wayland global shortcut portal yet
+
     // Set tracing to stdout
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)

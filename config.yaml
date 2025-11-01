@@ -1,5 +1,6 @@
 general:
   splits: test_splits/Super_Mario_64_-_16_Star_No_LBLJ_DW_Reds_eab37d1e.lss
+  split-format: Diff
   comparison: Personal Best
   timing-method: RealTime
 window:

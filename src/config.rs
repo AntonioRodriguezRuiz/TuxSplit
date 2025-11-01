@@ -29,6 +29,7 @@ pub struct Config {
 #[serde(rename_all = "kebab-case")]
 pub struct General {
     pub splits: Option<PathBuf>,
+    pub split_format: Option<String>,
     pub timing_method: Option<TimingMethod>,
     pub comparison: Option<String>,
     pub auto_splitter: Option<PathBuf>,

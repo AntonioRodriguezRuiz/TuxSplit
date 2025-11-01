@@ -1,71 +1,75 @@
 label {
-  /*
+    /*
     Replace "inherit" with your favorite color
   */
-  color: inherit;
+    color: inherit;
 }
 
 #logo {
-  animation-name: breathing;
-  animation-duration: 3s;
-  animation-timing-function: ease-out;
-  animation-iteration-count: infinite;
-  animation-direction: normal;
-  animation-delay: 0s;
-  animation-fill-mode: none;
-  animation-play-state: running;
+    animation-name: breathing;
+    animation-duration: 3s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: infinite;
+    animation-direction: normal;
+    animation-delay: 0s;
+    animation-fill-mode: none;
+    animation-play-state: running;
 }
 
 @keyframes breathing {
-  0% {
-    -gtk-icon-transform: scale(0.9);
-  }
+    0% {
+        -gtk-icon-transform: scale(0.9);
+    }
 
-  25% {
-    -gtk-icon-transform: scale(1);
-  }
+    25% {
+        -gtk-icon-transform: scale(1);
+    }
 
-  60% {
-    -gtk-icon-transform: scale(0.9);
-  }
+    60% {
+        -gtk-icon-transform: scale(0.9);
+    }
 
-  100% {
-    -gtk-icon-transform: scale(0.9);
-  }
+    100% {
+        -gtk-icon-transform: scale(0.9);
+    }
+}
+
+.current-segment {
+    background-color: @accent_bg_color;
 }
 
 .italic {
-  font-style: italic;
+    font-style: italic;
 }
 
 .timer {
-  font-family: var(--monospace-font-family);
+    font-family: var(--monospace-font-family);
 }
 
 .redsplit {
-  color: #ed333b;
+    color: #ed333b;
 }
 
 .gainedredsplit {
-  color: #f66151;
+    color: #f66151;
 }
 
 .greensplit {
-  color: #33d17a;
+    color: #33d17a;
 }
 
 .lostgreensplit {
-  color: #26a269;
+    color: #26a269;
 }
 
 .goldsplit {
-  color: #e5a50a;
+    color: #e5a50a;
 }
 
 .bigtimer {
-  font-size: 36px;
+    font-size: 36px;
 }
 
 .smalltimer {
-  font-size: 18px;
+    font-size: 18px;
 }
