@@ -3,6 +3,7 @@ use serde::Deserialize;
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]
 #[serde(default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct TimeFormat {
     pub show_hours: bool,
     pub show_minutes: bool,

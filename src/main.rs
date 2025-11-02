@@ -7,7 +7,6 @@ use std::sync::{Arc, RwLock};
 
 use livesplit_core::{HotkeySystem, Timer};
 use tracing::info;
-use tracing_subscriber;
 
 use adw::prelude::*;
 use adw::Application;
@@ -46,7 +45,17 @@ pub struct TuxSplit {
     pub hotkey_system: Arc<RwLock<HotkeySystem>>,
 }
 
+impl Default for TuxSplit {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TuxSplit {
+    #[must_use]
+    /// # Panics
+    ///
+    /// Will panic if the timer or hotkey system cannot be created.
     pub fn new() -> Self {
         let config = Config::parse("config.yaml").unwrap_or_default();
         let run = config.parse_run_or_default();

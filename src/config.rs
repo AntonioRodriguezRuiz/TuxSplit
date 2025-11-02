@@ -58,25 +58,16 @@ struct Connections {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]
 #[serde(default)]
+#[derive(Default)]
 pub struct Format {
     pub split: TimeFormat,
     pub timer: TimeFormat,
     pub segment: TimeFormat,
 }
 
-impl Default for Format {
-    fn default() -> Self {
-        // Defaults for all three formats mirror "h:m:s.dd"
-        Self {
-            split: TimeFormat::default(),
-            timer: TimeFormat::default(),
-            segment: TimeFormat::default(),
-        }
-    }
-}
 
 impl Config {
-    pub fn parse(path: impl AsRef<Path>) -> Option<Config> {
+    pub fn parse(path: impl AsRef<Path>) -> Option<Self> {
         let buf = fs::read(path).ok()?;
         serde_yaml::from_slice(&buf).ok()
     }
@@ -129,7 +120,7 @@ impl Config {
         }
     }
 
-    pub fn setup_logging(&self) {
+    pub const fn setup_logging(&self) {
         // TODO: Setup logging
         // if let Some(log) = &self.log {
         //     if let Ok(log_file) = fs::OpenOptions::new()

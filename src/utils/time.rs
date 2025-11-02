@@ -1,22 +1,18 @@
 use crate::config::Config;
 use livesplit_core::{TimeSpan, Timer, TimingMethod};
+use std::fmt::Write as _;
 use time::Duration as TimeDuration;
-
-/// Default patterns used when formatting times for each context.
-pub const SPLIT_TIME_FORMAT: &str = "h:m:s.dd";
-pub const TIMER_TIME_FORMAT: &str = "h:m:s.dd";
-pub const SEGMENT_TIME_FORMAT: &str = "h:m:s.dd";
 
 /// Formats an optional `TimeSpan` using the provided `pattern`.
 /// If the `TimeSpan` is `None`, this returns `"--"`.
 ///
 /// Example:
-/// - format_time_span_opt(Some(span), "h:m:s.dd") -> "3:25.17"
-/// - format_time_span_opt(None, "h:m:s.dd") -> "--"
+/// - `format_time_span_opt(Some(span)`, "h:m:s.dd") -> "3:25.17"
+/// - `format_time_span_opt(None`, "h:m:s.dd") -> "--"
 pub fn format_time_span_opt(span: Option<TimeSpan>, pattern: &str) -> String {
     match span {
         Some(s) => format_time_span(&s, pattern),
-        None => "--".to_string(),
+        None => "--".to_owned(),
     }
 }
 
@@ -41,7 +37,6 @@ pub fn format_time_span_opt(span: Option<TimeSpan>, pattern: &str) -> String {
 pub fn format_time_span(span: &TimeSpan, pattern: &str) -> String {
     // Determine sign and absolute time in milliseconds
     let total_ms = span.total_milliseconds();
-    let _negative = total_ms < 0.0;
     let abs_ms = total_ms.abs() as i64;
 
     let hours = abs_ms / 3_600_000;
@@ -66,10 +61,10 @@ pub fn format_time_span(span: &TimeSpan, pattern: &str) -> String {
         }
 
         match ch {
-            'h' => append_number(&mut out, hours as i64, false),
-            'm' => append_number(&mut out, minutes as i64, false),
-            's' => append_number(&mut out, seconds as i64, true),
-            'd' => append_fraction(&mut out, millis as i64, count),
+            'h' => append_number(&mut out, hours, false),
+            'm' => append_number(&mut out, minutes, false),
+            's' => append_number(&mut out, seconds, true),
+            'd' => append_fraction(&mut out, millis, count),
             _ => {
                 // Literal character(s)
                 for _ in 0..count {
@@ -88,7 +83,8 @@ pub fn format_time_span(span: &TimeSpan, pattern: &str) -> String {
 fn append_number(out: &mut String, value: i64, always_show: bool) {
     if value <= 0 && out.is_empty() && !always_show { // Skip showing value if there is no value before, to prevent : or . at start
     } else {
-        out.push_str(&format!(
+        let _ = write!(
+            out,
             "{:0width$}",
             value,
             width = if out.is_empty() {
@@ -96,7 +92,7 @@ fn append_number(out: &mut String, value: i64, always_show: bool) {
             } else {
                 2 // Minutes after hours, seconds after minutes are always 2 digits
             }
-        ));
+        );
     }
 }
 
@@ -104,10 +100,11 @@ fn append_number(out: &mut String, value: i64, always_show: bool) {
 /// - d  -> deciseconds (e.g., "1")
 /// - dd -> centiseconds (e.g., "17")
 /// - ddd -> milliseconds (e.g., "178")
+///
 /// For widths > 3, pads with zeros (truncation, not rounding).
 fn append_fraction(out: &mut String, millis: i64, width: usize) {
     // Always zero-pad to 3 digits for ms, then cut/pad as needed
-    let base = format!("{:03}", millis); // e.g., "007", "120", "999"
+    let base = format!("{millis:03}"); // e.g., "007", "120", "999"
     if width <= 3 {
         out.push_str(&base[..width]);
     } else {
@@ -156,7 +153,7 @@ pub fn format_timer(timer: &Timer, config: &mut Config) -> String {
     let pattern = config.format.timer.get_pattern(Some(ms_i64.abs()));
     let out = format_duration(&dur, &pattern);
     if dur < TimeDuration::ZERO {
-        format!("-{}", out)
+        format!("-{out}")
     } else {
         out
     }
@@ -169,7 +166,7 @@ pub fn format_segment_time(duration: &TimeDuration, config: &mut Config) -> Stri
     format_duration(duration, &pattern)
 }
 
-/// Formats a `time::Duration` using the same pattern machinery by converting to TimeSpan.
+/// Formats a `time::Duration` using the same pattern machinery by converting to `TimeSpan`.
 pub fn format_duration(duration: &TimeDuration, pattern: &str) -> String {
     let span = TimeSpan::from_milliseconds(duration.whole_nanoseconds() as f64 / 1_000_000.0);
     format_time_span(&span, pattern)
@@ -178,13 +175,16 @@ pub fn format_duration(duration: &TimeDuration, pattern: &str) -> String {
 pub fn format_duration_opt(duration: Option<TimeDuration>, pattern: &str) -> String {
     match duration {
         Some(d) => format_duration(&d, pattern),
-        None => "--".to_string(),
+        None => "--".to_owned(),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    pub const SPLIT_TIME_FORMAT: &str = "h:m:s.dd";
+    pub const SEGMENT_TIME_FORMAT: &str = "h:m:s.dd";
 
     fn span_ms(ms: i64) -> TimeSpan {
         TimeSpan::from_seconds(ms as f64 / 1000.0)

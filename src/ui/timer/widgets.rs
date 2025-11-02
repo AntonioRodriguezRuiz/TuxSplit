@@ -2,14 +2,14 @@ use crate::config::Config;
 use crate::ui::timer::data_model::{SelectedSegmentInfoData, SplitRowData};
 use crate::utils::time::format_timer;
 
-use adw::prelude::ActionRowExt;
+use adw::prelude::ActionRowExt as _;
 use adw::ActionRow;
-use gtk4::prelude::{BoxExt, WidgetExt};
+use gtk4::prelude::{BoxExt as _, WidgetExt as _};
 use gtk4::{Align, Box as GtkBox, Label, Orientation::Horizontal};
 
 use livesplit_core::Timer;
 
-/// Creates an ActionRow for a split using data from the view model.
+/// Creates an `ActionRow` for a split using data from the view model.
 /// - Adds row/label CSS classes from the data to preserve styling.
 /// - Appends a trailing label containing the split value.
 pub fn split_row(data: &SplitRowData) -> ActionRow {
@@ -47,7 +47,7 @@ pub fn build_timer_box(timer: &Timer, config: &mut Config) -> GtkBox {
 
     let formatted = format_timer(timer, config);
     let (left, right) = if let Some((l, r)) = formatted.rsplit_once('.') {
-        (format!("{}.", l), r.to_string())
+        (format!("{l}."), r.to_owned())
     } else {
         (formatted.clone(), String::new())
     };
@@ -83,7 +83,7 @@ pub fn build_selected_segment_info_box(data: &SelectedSegmentInfoData) -> GtkBox
     let best_label = Label::builder().label("Best:").build();
     best_label.add_css_class("caption-heading");
 
-    let best_value = Label::builder().label(&data.best_value_text).build();
+    let best_value = Label::builder().label(&data.best_value).build();
     best_value.add_css_class("caption");
     best_value.add_css_class("timer");
     best_box.append(&best_label);
@@ -95,10 +95,10 @@ pub fn build_selected_segment_info_box(data: &SelectedSegmentInfoData) -> GtkBox
         .spacing(2)
         .halign(Align::Start)
         .build();
-    let comparison_label = Label::builder().label(&data.comparison_label_text).build();
+    let comparison_label = Label::builder().label(&data.comparison_label).build();
     comparison_label.add_css_class("caption-heading");
 
-    let comparison_value = Label::builder().label(&data.comparison_value_text).build();
+    let comparison_value = Label::builder().label(&data.comparison_value).build();
     comparison_value.add_css_class("caption");
     comparison_value.add_css_class("timer");
     comparison_box.append(&comparison_label);
@@ -226,9 +226,9 @@ mod tests {
         gtk_test_init();
 
         let data = SelectedSegmentInfoData {
-            best_value_text: "1:23.45".to_string(),
-            comparison_label_text: "PB:".to_string(),
-            comparison_value_text: "0:45.67".to_string(),
+            best_value: "1:23.45".to_string(),
+            comparison_label: "PB:".to_string(),
+            comparison_value: "0:45.67".to_string(),
         };
 
         let vbox = build_selected_segment_info_box(&data);

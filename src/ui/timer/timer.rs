@@ -1,8 +1,8 @@
 use crate::config::Config;
 use crate::ui::timer::{data_model, widgets};
 
+use core::time::Duration;
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
 
 use adw::prelude::*;
 use adw::{self, AlertDialog, ApplicationWindow, Clamp, ToolbarView};
@@ -22,7 +22,7 @@ pub struct TimerUI {
 }
 
 impl TimerUI {
-    pub fn new(timer: Arc<RwLock<Timer>>, config: Arc<RwLock<Config>>) -> Self {
+    pub const fn new(timer: Arc<RwLock<Timer>>, config: Arc<RwLock<Config>>) -> Self {
         Self { timer, config }
     }
 
@@ -51,7 +51,7 @@ impl TimerUI {
             .orientation(Vertical)
             .halign(Align::Center)
             .build();
-        let (run_name, category) = TimerUI::build_run_info(&self.timer.read().unwrap());
+        let (run_name, category) = Self::build_run_info(&self.timer.read().unwrap());
         run_info.append(&run_name);
         run_info.append(&category);
 
@@ -62,8 +62,7 @@ impl TimerUI {
             .selection_mode(SelectionMode::Single)
             .css_classes(["boxed-list"])
             .build();
-        let segments_rows =
-            TimerUI::build_splits_list(&self.timer.read().unwrap(), &mut config_ref);
+        let segments_rows = Self::build_splits_list(&self.timer.read().unwrap(), &mut config_ref);
         for row in segments_rows {
             segments_list.append(&row);
         }
@@ -76,12 +75,12 @@ impl TimerUI {
             .orientation(Horizontal)
             .width_request(300)
             .build();
-        center_box.set_start_widget(Some(&TimerUI::build_center_box_selected_segment_info(
+        center_box.set_start_widget(Some(&Self::build_center_box_selected_segment_info(
             &self.timer.read().unwrap(),
             &mut config_ref,
             &segments_list,
         )));
-        center_box.set_end_widget(Some(&TimerUI::build_center_box_timer(
+        center_box.set_end_widget(Some(&Self::build_center_box_timer(
             &self.timer.read().unwrap(),
             &mut config_ref,
         )));
@@ -91,10 +90,9 @@ impl TimerUI {
         let segments_binding = segments_list.clone();
         let center_box_binding = center_box.clone();
 
-        let mut rendered_comparison = self.timer.read().unwrap().current_comparison().to_string();
+        let mut rendered_comparison = self.timer.read().unwrap().current_comparison().to_owned();
         let mut rendered_phase = self.timer.read().unwrap().current_phase();
         let mut render_all_segments = true;
-        let binding = self.config.clone();
         let mut rendered_splits = config_ref.general.splits.clone().unwrap_or_default();
 
         let timer_binding = self.timer.clone();
@@ -104,19 +102,15 @@ impl TimerUI {
             let t = timer_binding.read().unwrap();
             let mut c = config_binding.write().unwrap();
 
-            render_all_segments = (rendered_comparison != t.current_comparison().to_string())
+            render_all_segments = (rendered_comparison != t.current_comparison())
                 || (rendered_phase != t.current_phase())
                 || (rendered_splits != c.general.splits.clone().unwrap_or_default());
 
             // Rerender run info if it changes
             if rendered_splits != c.general.splits.clone().unwrap_or_default() {
-                let (run_name, category) = TimerUI::build_run_info(&t);
-                loop {
-                    if let Some(child) = run_info_binding.first_child() {
-                        run_info_binding.remove(&child);
-                    } else {
-                        break;
-                    }
+                let (run_name, category) = Self::build_run_info(&t);
+                while let Some(child) = run_info_binding.first_child() {
+                    run_info_binding.remove(&child);
                 }
                 run_info_binding.append(&run_name);
                 run_info_binding.append(&category);
@@ -142,7 +136,7 @@ impl TimerUI {
                 segments_binding.set_selection_mode(SelectionMode::Single);
                 segments_binding.unbind_model();
 
-                let splits_rows = TimerUI::build_splits_list(&t, &mut c);
+                let splits_rows = Self::build_splits_list(&t, &mut c);
                 for row in splits_rows {
                     segments_binding.append(&row);
                 }
@@ -191,11 +185,11 @@ impl TimerUI {
             // Current Split + Timer
             // =====================
             center_box_binding.set_start_widget(Some(
-                &TimerUI::build_center_box_selected_segment_info(&t, &mut c, &segments_binding),
+                &Self::build_center_box_selected_segment_info(&t, &mut c, &segments_binding),
             ));
-            center_box_binding.set_end_widget(Some(&TimerUI::build_center_box_timer(&t, &mut c)));
+            center_box_binding.set_end_widget(Some(&Self::build_center_box_timer(&t, &mut c)));
 
-            rendered_comparison = t.current_comparison().to_string();
+            rendered_comparison = t.current_comparison().to_owned();
             rendered_phase = t.current_phase();
             rendered_splits = c.general.splits.clone().unwrap_or_default();
 
@@ -300,9 +294,8 @@ impl TimerUI {
                     if let Some(file) = dialog.file() {
                         if let Some(path) = file.path() {
                             c.set_splits_path(path);
-                            let run = c.parse_run_or_default();
                             if let Some(run) = c.parse_run() {
-                                t.set_run(run);
+                                let _ = t.set_run(run);
                                 c.configure_timer(&mut t);
                             }
                         }
@@ -326,12 +319,12 @@ impl TimerUI {
         });
 
         // TODO: Config
-        let _settings_action = gio::SimpleAction::new("settings", None);
+        let settings_action = gio::SimpleAction::new("settings", None);
         let parent_for_settings = parent.clone();
-        _settings_action.connect_activate(move |_, _| {
+        settings_action.connect_activate(move |_, _| {
             let dialog = AlertDialog::builder()
                 .heading("Settings")
-                .body("This feature isn’t available yet. Stay tuned!")
+                .body("This feature isn\u{2019}t available yet. Stay tuned!")
                 .default_response("ok")
                 .build();
             dialog.add_response("ok", "Okay");
@@ -390,7 +383,7 @@ impl TimerUI {
         let group = gio::SimpleActionGroup::new();
         group.add_action(&load_action);
         group.add_action(&save_action);
-        group.add_action(&_settings_action);
+        group.add_action(&settings_action);
         group.add_action(&keybinds_action);
         group.add_action(&about_action);
 
@@ -416,10 +409,7 @@ impl TimerUI {
     fn build_splits_list(timer: &Timer, config: &mut Config) -> Vec<adw::ActionRow> {
         data_model::compute_split_rows(timer, config)
             .into_iter()
-            .map(|d| {
-                let row = widgets::split_row(&d);
-                row
-            })
+            .map(|d| widgets::split_row(&d))
             .collect()
     }
 

@@ -2,7 +2,7 @@ use crate::config::Config;
 use crate::formatters::label::format_label;
 use crate::utils::time::{format_segment_time, format_split_time};
 
-use gtk4::prelude::ListBoxRowExt;
+use gtk4::prelude::ListBoxRowExt as _;
 use gtk4::ListBox;
 
 use livesplit_core::{Timer, TimingMethod};
@@ -75,7 +75,7 @@ fn segment_split_time(segment: &livesplit_core::Segment, timer: &Timer) -> TimeD
 fn previous_comparison_values(timer: &Timer, index: usize) -> (TimeDuration, TimeDuration) {
     let segments = timer.run().segments();
     if index > 0 {
-        let prev = segments.get(index - 1).unwrap();
+        let prev = &segments[index - 1];
         let prev_comp_duration = prev
             .comparison_timing_method(timer.current_comparison(), timer.current_timing_method())
             .unwrap_or_default()
@@ -108,7 +108,7 @@ fn format_signed(diff: TimeDuration, config: &mut Config) -> String {
     };
     let abs = diff.abs();
     let formatted = format_segment_time(&abs, config);
-    format!("{}{}", sign, formatted)
+    format!("{sign}{formatted}")
 }
 
 pub fn compute_split_rows(timer: &Timer, config: &mut Config) -> Vec<SplitRowData> {
@@ -133,7 +133,7 @@ pub fn compute_segment_row(
     index: usize,
     segment: &livesplit_core::Segment,
 ) -> SplitRowData {
-    let title = segment.name().to_string();
+    let title = segment.name().to_owned();
 
     // Default value is the comparison for this segment.
     let segment_comparison = segment
@@ -143,7 +143,7 @@ pub fn compute_segment_row(
 
     let mut value_text = format_split_time(
         &segment.comparison(timer.current_comparison()),
-        &timer,
+        timer,
         config,
     );
 
@@ -196,14 +196,14 @@ pub fn compute_segment_row(
 
             if split_time == TimeDuration::ZERO {
                 // The split was skipped
-                value_text = "--".to_string();
+                value_text = String::from("--");
             } else {
                 let diff = split_time
                     .checked_sub(segment_comparison)
                     .unwrap_or_default();
 
                 if config.general.split_format == Some(String::from("Time")) {
-                    value_text = format_split_time(&segment.split_time(), &timer, config);
+                    value_text = format_split_time(&segment.split_time(), timer, config);
                 } else if segment_comparison != TimeDuration::ZERO {
                     // DIFF
                     value_text = format_signed(diff, config);
@@ -242,9 +242,7 @@ pub fn classify_split_label(
     let mut classes = Vec::new();
 
     // Gold split check has priority
-    if !running
-        && (goldsplit_duration == TimeDuration::ZERO
-            || (goldsplit_duration != TimeDuration::ZERO && split_duration < goldsplit_duration))
+    if (split_duration < goldsplit_duration || goldsplit_duration == TimeDuration::ZERO) && !running
     {
         classes.push("goldsplit");
         return classes;
@@ -273,9 +271,9 @@ pub fn classify_split_label(
 // New data model for current split info used in center box
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelectedSegmentInfoData {
-    pub best_value_text: String,
-    pub comparison_label_text: String,
-    pub comparison_value_text: String,
+    pub best_value: String,
+    pub comparison_label: String,
+    pub comparison_value: String,
 }
 
 /// Computes the textual data for the "current split info" panel:
@@ -299,12 +297,10 @@ pub fn compute_selected_segment_info(
             .unwrap_or(0)
     };
 
-    let selected_segment = segments.get(selected_index).unwrap();
+    let selected_segment = &segments[selected_index];
 
     let previous_comparison_time = if selected_index > 0 {
-        segments
-            .get(selected_index - 1)
-            .unwrap()
+        segments[selected_index - 1]
             .comparison_timing_method(timer.current_comparison(), timer.current_timing_method())
             .unwrap_or_default()
             .to_duration()
@@ -312,7 +308,7 @@ pub fn compute_selected_segment_info(
         TimeDuration::ZERO
     };
 
-    let best_value_text = format_split_time(&selected_segment.best_segment_time(), &timer, config);
+    let best_value_text = format_split_time(&selected_segment.best_segment_time(), timer, config);
 
     let comparison_label_text = format!("{}:", format_label(timer.current_comparison()));
 
@@ -328,24 +324,15 @@ pub fn compute_selected_segment_info(
     );
 
     SelectedSegmentInfoData {
-        best_value_text,
-        comparison_label_text,
-        comparison_value_text,
+        best_value: best_value_text,
+        comparison_label: comparison_label_text,
+        comparison_value: comparison_value_text,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use livesplit_core::{Run, Segment, Timer};
-
-    fn make_min_timer() -> Timer {
-        let mut run = Run::new();
-        run.set_game_name("Game");
-        run.set_category_name("Any%");
-        run.push_segment(Segment::new("Split 1"));
-        Timer::new(run).expect("Timer should be creatable for minimal run")
-    }
 
     #[test]
     fn classify_gold_when_not_running_and_new_best_and_ahead() {
@@ -357,8 +344,7 @@ mod tests {
         let classes = classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
             classes.contains(&"goldsplit"),
-            "Expected goldsplit: got {:?}",
-            classes
+            "Expected goldsplit: got {classes:?}",
         );
     }
 
@@ -373,8 +359,7 @@ mod tests {
         let classes = classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
             classes.contains(&"goldsplit"),
-            "Expected goldsplit when gold duration is zero and not running: got {:?}",
-            classes
+            "Expected goldsplit when gold duration is zero and not running: got {classes:?}",
         );
     }
 
@@ -388,8 +373,7 @@ mod tests {
         let classes = classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
             classes.contains(&"gainedredsplit"),
-            "Expected redsplit when behind and gaining: got {:?}",
-            classes
+            "Expected redsplit when behind and gaining: got {classes:?}",
         );
     }
 
@@ -403,8 +387,7 @@ mod tests {
         let classes = classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
             classes.contains(&"redsplit"),
-            "Expected redsplit when behind and not gaining: got {:?}",
-            classes
+            "Expected redsplit when behind and not gaining: got {classes:?}",
         );
     }
 
@@ -418,8 +401,7 @@ mod tests {
         let classes = classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
             classes.contains(&"greensplit"),
-            "Expected greensplit when ahead and not losing against comparison_duration: got {:?}",
-            classes
+            "Expected greensplit when ahead and not losing against comparison_duration: got {classes:?}",
         );
     }
 
@@ -433,8 +415,8 @@ mod tests {
         let classes = classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
             classes.contains(&"lostgreensplit"),
-            "Expected lostgreensplit when ahead (negative diff) but split exceeds comparison_duration: got {:?}",
-            classes
+            "Expected lostgreensplit when ahead (negative diff) but split exceeds comparison_duration: got {classes:?}",
+
         );
     }
 
@@ -450,8 +432,7 @@ mod tests {
             !classes.iter().any(
                 |c| ["greensplit", "lostgreensplit", "gainedredsplit", "redsplit"].contains(c)
             ),
-            "Expected no red/green class when diff is zero: got {:?}",
-            classes
+            "Expected no red/green class when diff is zero: got {classes:?}",
         );
     }
 }
