@@ -166,7 +166,7 @@ pub fn compute_split_rows(timer: &Timer, config: &Config) -> Vec<SplitRowData> {
                         .unwrap_or_default()
                 };
 
-                if diff.is_positive()
+                if diff.is_positive() && segment_comparison != TimeDuration::ZERO
                     || (goldsplit_duration != TimeDuration::ZERO
                         && split_running_time >= goldsplit_duration)
                 {
@@ -188,20 +188,21 @@ pub fn compute_split_rows(timer: &Timer, config: &Config) -> Vec<SplitRowData> {
 
                     if config.general.split_format == Some(String::from("Time")) {
                         value_text = format_split_time(&segment.split_time(), &timer, &config);
-                    } else {
+                    } else if segment_comparison != TimeDuration::ZERO {
                         // DIFF
                         value_text = format_signed(diff);
                     }
-
-                    label_classes = classify_split_label(
-                        segment_comparison_duration,
-                        split_time
-                            .checked_sub(previous_comparison_time)
-                            .unwrap_or_default(),
-                        diff,
-                        goldsplit_duration,
-                        false, // not running
-                    );
+                    if segment_comparison != TimeDuration::ZERO {
+                        label_classes = classify_split_label(
+                            segment_comparison_duration,
+                            split_time
+                                .checked_sub(previous_comparison_time)
+                                .unwrap_or_default(),
+                            diff,
+                            goldsplit_duration,
+                            false, // not running
+                        );
+                    }
                 }
             }
         }
