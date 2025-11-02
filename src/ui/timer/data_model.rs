@@ -2,8 +2,6 @@ use crate::config::Config;
 use crate::formatters::label::format_label;
 use crate::utils::time::{format_segment_time, format_split_time};
 
-use adw::prelude::ActionRowExt;
-use adw::ActionRow;
 use gtk4::prelude::ListBoxRowExt;
 use gtk4::ListBox;
 

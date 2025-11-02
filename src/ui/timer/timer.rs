@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::ui::timer::{data_model, timer, widgets};
+use crate::ui::timer::{data_model, widgets};
 
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
@@ -13,10 +13,7 @@ use gtk4::{
     SelectionMode,
 };
 
-use livesplit_core::{Timer, TimerPhase};
-
-use tracing::debug;
-use tracing_subscriber::field::debug;
+use livesplit_core::Timer;
 
 // Timer layout for runs
 pub struct TimerUI {
@@ -130,19 +127,19 @@ impl TimerUI {
             // =====================
             if render_all_segments {
                 render_all_segments = false;
-                segments_binding.set_selection_mode(SelectionMode::Single);
 
                 let mut selected_index: Option<i32> = None;
 
                 // REBUILD ONCE
                 for (index, _) in t.run().segments().iter().enumerate() {
-                    if let Some(row) = segments_binding.row_at_index(0) {
+                    if let Some(row) = segments_binding.row_at_index(index as i32) {
                         if row.is_selected() {
                             selected_index = Some(index as i32);
                         }
                     }
                 }
 
+                segments_binding.set_selection_mode(SelectionMode::Single);
                 segments_binding.unbind_model();
 
                 let splits_rows = TimerUI::build_splits_list(&t, &mut c);
@@ -409,11 +406,9 @@ impl TimerUI {
     fn build_run_info(timer: &Timer) -> (Label, Label) {
         let run_name = Label::builder().label(timer.run().game_name()).build();
         run_name.add_css_class("title-2");
-        debug!("Run Name: {}", run_name.label());
 
         let category = Label::builder().label(timer.run().category_name()).build();
         category.add_css_class("heading");
-        debug!("Category: {}", category.label());
 
         (run_name, category)
     }
