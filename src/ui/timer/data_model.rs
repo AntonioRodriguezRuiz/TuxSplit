@@ -171,14 +171,6 @@ pub fn compute_split_rows(timer: &Timer, config: &Config) -> Vec<SplitRowData> {
                         && split_running_time >= goldsplit_duration)
                 {
                     value_text = format_signed(diff);
-
-                    label_classes = classify_split_label(
-                        segment_comparison_duration,
-                        split_running_time,
-                        diff,
-                        goldsplit_duration,
-                        true, // running
-                    );
                 }
             }
 
