@@ -4,7 +4,6 @@ use adw::prelude::ActionRowExt as _;
 use adw::ActionRow;
 use gtk4::prelude::*;
 use gtk4::{Align, Box as GtkBox, Label, ListBox, Orientation, SelectionMode};
-use time::Duration;
 
 use livesplit_core::{Timer, TimerPhase};
 
@@ -564,8 +563,68 @@ impl SegmentRow {
 }
 
 #[cfg(test)]
+mod segment_row_ui_tests {
+    use super::*;
+    use adw::prelude::*;
+    use gtk4;
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    fn gtk_test_init() {
+        INIT.call_once(|| {
+            gtk4::init().expect("Failed to init GTK");
+            let _ = adw::init();
+        });
+    }
+
+    #[gtk4::test]
+    fn segment_row_sets_title_and_no_current_class_when_none() {
+        gtk_test_init();
+
+        let mut run = livesplit_core::Run::new();
+        run.set_game_name("Game");
+        run.set_category_name("Any%");
+        run.push_segment(livesplit_core::Segment::new("Split A"));
+        let timer = livesplit_core::Timer::new(run).expect("timer");
+        let mut config = Config::default();
+
+        let segment = &timer.run().segments()[0];
+        let row = SegmentRow::new(&timer, &mut config, None, 0, segment);
+
+        assert_eq!(row.row().title().as_str(), "Split A");
+        assert!(
+            !row.row().has_css_class("current-segment"),
+            "Expected no current-segment class"
+        );
+    }
+
+    #[gtk4::test]
+    fn segment_row_applies_current_segment_class_when_current() {
+        gtk_test_init();
+
+        let mut run = livesplit_core::Run::new();
+        run.set_game_name("Game");
+        run.set_category_name("Any%");
+        run.push_segment(livesplit_core::Segment::new("Split A"));
+        let timer = livesplit_core::Timer::new(run).expect("timer");
+        let mut config = Config::default();
+
+        let segment = &timer.run().segments()[0];
+        let row = SegmentRow::new(&timer, &mut config, Some(0), 0, segment);
+
+        assert_eq!(row.row().title().as_str(), "Split A");
+        assert!(
+            row.row().has_css_class("current-segment"),
+            "Expected current-segment class"
+        );
+    }
+}
+
+#[cfg(test)]
 mod classify_split_labels_tests {
     use super::*;
+    use time::Duration;
 
     #[test]
     fn classify_gold_when_first_split() {

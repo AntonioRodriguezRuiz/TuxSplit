@@ -289,3 +289,214 @@ impl RunningTimer {
         }
     }
 }
+
+#[cfg(test)]
+mod footer_ui_tests {
+    use super::*;
+    use glib::prelude::Cast;
+    use gtk4::{Box as GtkBox, Label, ListBox};
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    fn gtk_test_init() {
+        INIT.call_once(|| {
+            gtk4::init().expect("Failed to init GTK");
+            let _ = adw::init();
+        });
+    }
+
+    #[gtk4::test]
+    fn running_timer_negative_offset_displays_split_labels() {
+        gtk_test_init();
+
+        let mut run = livesplit_core::Run::new();
+        run.set_game_name("Game");
+        run.set_category_name("Any%");
+        run.set_offset(livesplit_core::TimeSpan::from_seconds(-5.0));
+        run.push_segment(livesplit_core::Segment::new("Split 1"));
+        let timer = livesplit_core::Timer::new(run).expect("timer");
+        let mut config = Config::default();
+
+        let rt = RunningTimer::new(&timer, &mut config);
+        let wrapper = rt.container();
+
+        let timer_box_w = wrapper.first_child().expect("timer box");
+        let timer_box: GtkBox = timer_box_w.downcast().expect("GtkBox");
+        assert!(timer_box.has_css_class("timer"), "Expected 'timer' class");
+        assert!(
+            timer_box.has_css_class("inactive-timer"),
+            "Expected 'inactive-timer' class"
+        );
+
+        let hms_w = timer_box.first_child().expect("hms");
+        let hms: Label = hms_w.downcast().expect("Label");
+        assert!(hms.has_css_class("bigtimer"), "Expected 'bigtimer' class");
+        assert_eq!(
+            hms.label().as_str(),
+            "-5.",
+            "Expected initial hms label to be '-5.'"
+        );
+
+        let ms_w = hms.next_sibling().expect("ms");
+        let ms: Label = ms_w.downcast().expect("Label");
+        assert!(
+            ms.has_css_class("smalltimer"),
+            "Expected 'smalltimer' class"
+        );
+        assert_eq!(
+            ms.label().as_str(),
+            "00",
+            "Expected initial ms label to be '00'"
+        );
+    }
+
+    #[gtk4::test]
+    fn running_timer_has_two_labels_and_expected_classes_during_phase_changes() {
+        gtk_test_init();
+
+        let mut run = livesplit_core::Run::new();
+        run.set_game_name("Game");
+        run.set_category_name("Any%");
+        run.push_segment(livesplit_core::Segment::new("Split 1"));
+        let mut timer = livesplit_core::Timer::new(run).expect("timer");
+        let mut config = Config::default();
+
+        let mut rt = RunningTimer::new(&timer, &mut config);
+
+        // Initially not running
+        let wrapper = rt.container();
+        let timer_box_w = wrapper.first_child().expect("timer box");
+        let timer_box: GtkBox = timer_box_w.downcast().expect("GtkBox");
+        assert!(timer_box.has_css_class("timer"), "Expected 'timer' class");
+        assert!(
+            timer_box.has_css_class("inactive-timer"),
+            "Expected 'inactive-timer' class"
+        );
+
+        // Check label defaults
+        let hms_w = timer_box.first_child().expect("hms");
+        let hms: Label = hms_w.downcast().expect("Label");
+        assert!(hms.has_css_class("bigtimer"), "Expected 'bigtimer' class");
+        assert_eq!(
+            hms.label().as_str(),
+            "0.",
+            "Expected initial hms label to be '0.'"
+        );
+
+        let ms_w = hms.next_sibling().expect("ms");
+        let ms: Label = ms_w.downcast().expect("Label");
+        assert!(
+            ms.has_css_class("smalltimer"),
+            "Expected 'smalltimer' class"
+        );
+        assert_eq!(
+            ms.label().as_str(),
+            "00",
+            "Expected initial ms label to be '00'"
+        );
+
+        // Start timer -> active
+        timer.start();
+        rt.update(&timer, &mut config);
+        let wrapper = rt.container();
+        let timer_box_w = wrapper.first_child().expect("timer box");
+        let timer_box: GtkBox = timer_box_w.downcast().expect("GtkBox");
+        assert!(
+            timer_box.has_css_class("active-timer"),
+            "Expected 'active-timer' class"
+        );
+
+        // Pause -> inactive
+        timer.pause();
+        rt.update(&timer, &mut config);
+        let wrapper = rt.container();
+        let timer_box_w = wrapper.first_child().expect("timer box");
+        let timer_box: GtkBox = timer_box_w.downcast().expect("GtkBox");
+        assert!(
+            timer_box.has_css_class("inactive-timer"),
+            "Expected 'inactive-timer' class"
+        );
+
+        // Reset -> inactive
+        timer.reset(false);
+        rt.update(&timer, &mut config);
+        let wrapper = rt.container();
+        let timer_box_w = wrapper.first_child().expect("timer box");
+        let timer_box: GtkBox = timer_box_w.downcast().expect("GtkBox");
+        assert!(
+            timer_box.has_css_class("inactive-timer"),
+            "Expected 'inactive-timer' class"
+        );
+    }
+
+    #[gtk4::test]
+    fn segment_comparison_structure_and_texts() {
+        gtk_test_init();
+
+        // Build list for selection
+        let list = ListBox::new();
+
+        // Minimal timer and config
+        let mut run = livesplit_core::Run::new();
+        run.set_game_name("Game");
+        run.set_category_name("Any%");
+        run.push_segment(livesplit_core::Segment::new("Split 1"));
+        let timer = livesplit_core::Timer::new(run).expect("timer");
+        let mut config = Config::default();
+
+        let mut sc = SegmentComparison::new(&timer, &mut config, &list);
+        let wrapper = sc.container();
+
+        // vbox inside wrapper
+        let vbox_w = wrapper.first_child().expect("vbox");
+        let vbox: GtkBox = vbox_w.downcast().expect("GtkBox");
+
+        // Best row
+        let best_box_w = vbox.first_child().expect("best box");
+        let best_box: GtkBox = best_box_w.downcast().expect("GtkBox");
+
+        let best_label_w = best_box.first_child().expect("best label");
+        let best_label: Label = best_label_w.downcast().expect("Label");
+        assert_eq!(best_label.label().as_str(), "Best:",);
+        assert!(
+            best_label.has_css_class("caption-heading"),
+            "Expected 'caption-heading' class"
+        );
+
+        let best_value_w = best_label.next_sibling().expect("best value");
+        let best_value: Label = best_value_w.downcast().expect("Label");
+        assert!(
+            best_value.has_css_class("caption"),
+            "Expected 'caption' class"
+        );
+        assert!(best_value.has_css_class("timer"), "Expected 'timer' class");
+        // No best set -> "--"
+        assert_eq!(best_value.label().as_str(), "--");
+
+        // Comparison row
+        let comparison_box_w = best_box.next_sibling().expect("comparison box");
+        let comparison_box: GtkBox = comparison_box_w.downcast().expect("GtkBox");
+
+        let comp_label_w = comparison_box.first_child().expect("comparison label");
+        let comp_label: Label = comp_label_w.downcast().expect("Label");
+        assert_eq!(comp_label.label().as_str(), "PB:");
+        assert!(
+            best_label.has_css_class("caption-heading"),
+            "Expected 'caption-heading' class"
+        );
+
+        let comp_value_w = comp_label.next_sibling().expect("comparison value");
+        let comp_value: Label = comp_value_w.downcast().expect("Label");
+        assert!(
+            comp_value.has_css_class("caption"),
+            "Expected 'caption' class"
+        );
+        assert!(comp_value.has_css_class("timer"), "Expected 'timer' class");
+        // No comparison times yet -> "0.00"
+        assert_eq!(comp_value.label().as_str(), "0.00");
+
+        // Ensure update works without panics and keeps structure
+        sc.update(&timer, &mut config);
+    }
+}
