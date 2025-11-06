@@ -77,11 +77,20 @@ struct Connections {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]
 #[serde(default)]
-#[derive(Default)]
 pub struct Format {
     pub split: TimeFormat,
     pub timer: TimeFormat,
     pub segment: TimeFormat,
+}
+
+impl Default for Format {
+    fn default() -> Self {
+        Self {
+            split: TimeFormat::new(true, true, true, true, 2, true),
+            timer: TimeFormat::default(),
+            segment: TimeFormat::default(),
+        }
+    }
 }
 
 impl Config {

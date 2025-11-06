@@ -3,7 +3,7 @@ use crate::config::Config;
 use adw::prelude::ActionRowExt as _;
 use adw::ActionRow;
 use glib::clone;
-use gtk4::prelude::*;
+use gtk4::{prelude::*, CenterBox};
 use gtk4::{
     Adjustment, Align, Box as GtkBox, Label, ListBox, Orientation, ScrolledWindow, SelectionMode,
 };
@@ -22,7 +22,10 @@ pub struct TimerBody {
 
 impl TimerBody {
     pub fn new(timer: &Timer, config: &mut Config) -> Self {
-        let container = GtkBox::builder().orientation(Orientation::Vertical).build();
+        let container = GtkBox::builder()
+            .orientation(Orientation::Vertical)
+            .hexpand(true)
+            .build();
 
         let segment_list = SegmentList::new(timer, config);
         container.append(segment_list.container());
@@ -61,7 +64,7 @@ impl SegmentList {
     pub fn new(timer: &Timer, config: &mut Config) -> Self {
         let container = GtkBox::builder()
             .orientation(Orientation::Vertical)
-            .hexpand(false)
+            .hexpand(true)
             .vexpand(false)
             .spacing(0)
             .css_classes(["splits-container"])
@@ -70,7 +73,7 @@ impl SegmentList {
         let height_request = SegmentList::compute_scroller_height(timer, config);
 
         let scroller = ScrolledWindow::builder()
-            .hexpand(false)
+            .hexpand(true)
             .vexpand(false)
             .min_content_height(SegmentRow::get_natural_height())
             .height_request(height_request)
@@ -79,6 +82,7 @@ impl SegmentList {
 
         let list = ListBox::builder()
             .selection_mode(SelectionMode::Single)
+            .hexpand(true)
             .css_classes(["split-boxed-list"])
             .build();
 
@@ -306,7 +310,7 @@ impl SegmentList {
 // SegmentRow: wraps a row widget and its value label so we can refresh without touching the ListBox
 pub struct SegmentRow {
     row: ActionRow,
-    value_label: Label,
+    suffix: SegmentSuffix,
 }
 
 impl SegmentRow {
@@ -321,52 +325,20 @@ impl SegmentRow {
         index: usize,
         segment: &livesplit_core::Segment,
     ) -> Self {
-        let segment_comparison_time = Self::segment_comparison_time(segment, timer);
-        let (previous_comparison_duration, previous_comparison_time) =
-            Self::previous_comparison_values(timer, index);
-        let segment_comparison_duration = segment_comparison_time
-            .checked_sub(previous_comparison_duration)
-            .unwrap_or_default()
-            .abs();
-
         let title = segment.name().to_owned();
-        let row = ActionRow::builder().title(&title).build();
+        let row = ActionRow::builder().title(&title).hexpand(true).build();
 
-        let label = Label::builder()
-            .halign(Align::Center)
-            .valign(Align::Center)
-            .css_classes(["timer"])
-            .build();
+        if Some(index) == opt_current_segment_index {
+            row.add_css_class("current-segment");
+        }
+        let suffix = SegmentSuffix::new(timer, config, opt_current_segment_index, index, segment);
 
-        let mut value_text = config.format.split.format_split_time(
-            &segment.comparison(timer.current_comparison()),
-            timer.current_timing_method(),
-        );
-
-        SegmentRow::compute_segment(
-            timer,
-            config,
-            opt_current_segment_index,
-            index,
-            segment,
-            segment_comparison_time,
-            previous_comparison_time,
-            segment_comparison_duration,
-            &row,
-            &label,
-            &mut value_text,
-        );
-
-        label.set_label(&value_text);
-        row.add_suffix(&label);
+        row.add_suffix(suffix.container());
 
         // Add no transition for more responsive updates
         row.add_css_class("no-transition");
 
-        Self {
-            row,
-            value_label: label,
-        }
+        Self { row, suffix }
     }
 
     pub fn refresh(
@@ -377,16 +349,83 @@ impl SegmentRow {
         index: usize,
         segment: &livesplit_core::Segment,
     ) {
-        // Recompute values
-        let mut value_text = config.format.split.format_split_time(
-            &segment.comparison(timer.current_comparison()),
-            timer.current_timing_method(),
-        );
-
         // Reset dynamic classes
-        self.value_label.set_css_classes(&["timer"]);
         self.row.remove_css_class("current-segment");
+        if Some(index) == opt_current_segment_index {
+            self.row.add_css_class("current-segment");
+        }
 
+        self.suffix
+            .compute_segment(timer, config, opt_current_segment_index, index, segment);
+    }
+
+    fn get_natural_height() -> i32 {
+        // We create an action row and measure its natural height
+        let row = ActionRow::builder().title("Test").build();
+        let monospace_label = Label::builder()
+            .label("00:00:00")
+            .css_classes(["timer", "monospace"])
+            .build();
+        row.add_suffix(&monospace_label);
+        row.measure(gtk4::Orientation::Vertical, -1).0 + 5 // Account for padding
+    }
+}
+
+// A segment suffix contains both the delta and the comparison labels, and renders them in a box, that is meant to be attached to a SegmentRow
+pub struct SegmentSuffix {
+    container: CenterBox,
+    delta_label: Label,
+    comparison_label: Label,
+}
+
+impl SegmentSuffix {
+    pub fn new(
+        timer: &Timer,
+        config: &mut Config,
+        opt_current_segment_index: Option<usize>,
+        index: usize,
+        segment: &livesplit_core::Segment,
+    ) -> Self {
+        let container = CenterBox::builder()
+            .orientation(Orientation::Horizontal)
+            .width_request(150)
+            .build();
+        let delta_label = Label::builder()
+            .halign(Align::Center)
+            .valign(Align::Center)
+            .css_classes(["timer", "monospace"])
+            .build();
+        let comparison_label = Label::builder()
+            .halign(Align::Center)
+            .valign(Align::Center)
+            .css_classes(["timer", "monospace", "comparison"])
+            .build();
+        container.set_start_widget(Some(&delta_label));
+        container.set_end_widget(Some(&comparison_label));
+
+        let mut suffix = Self {
+            container,
+            delta_label,
+            comparison_label,
+        };
+        suffix.compute_segment(timer, config, opt_current_segment_index, index, segment);
+
+        suffix
+    }
+
+    pub fn container(&self) -> &CenterBox {
+        &self.container
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn compute_segment(
+        &self,
+        timer: &Timer,
+        config: &mut Config,
+        opt_current_segment_index: Option<usize>,
+        index: usize,
+        segment: &livesplit_core::Segment,
+    ) {
         let segment_comparison_time = Self::segment_comparison_time(segment, timer);
         let (previous_comparison_duration, previous_comparison_time) =
             Self::previous_comparison_values(timer, index);
@@ -395,64 +434,36 @@ impl SegmentRow {
             .unwrap_or_default()
             .abs();
 
-        SegmentRow::compute_segment(
-            timer,
-            config,
-            opt_current_segment_index,
-            index,
-            segment,
-            segment_comparison_time,
-            previous_comparison_time,
-            segment_comparison_duration,
-            &self.row,
-            &self.value_label,
-            &mut value_text,
+        self.comparison_label.set_label(
+            config
+                .format
+                .segment
+                .format_split_time(
+                    &segment.comparison(timer.current_comparison()),
+                    timer.current_timing_method(),
+                )
+                .as_str(),
         );
-
-        // Apply recomputed label (avoid churn if unchanged)
-        if self.value_label.label().as_str() != value_text {
-            self.value_label.set_label(&value_text);
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn compute_segment(
-        timer: &Timer,
-        config: &mut Config,
-        opt_current_segment_index: Option<usize>,
-        index: usize,
-        segment: &livesplit_core::Segment,
-        segment_comparison_time: time::Duration,
-        previous_comparison_time: time::Duration,
-        segment_comparison_duration: time::Duration,
-        row: &ActionRow,
-        label: &Label,
-        value_text: &mut String,
-    ) {
         if let Some(current_segment_index) = opt_current_segment_index {
             if current_segment_index > index {
-                SegmentRow::compute_passed_segment(
+                self.compute_passed_segment(
                     timer,
                     config,
                     segment,
                     segment_comparison_time,
                     previous_comparison_time,
                     segment_comparison_duration,
-                    label,
-                    value_text,
                 );
             }
 
             if current_segment_index == index {
-                SegmentRow::compute_current_segment(
+                self.compute_current_segment(
                     timer,
                     config,
                     index,
                     segment,
                     segment_comparison_time,
                     previous_comparison_time,
-                    row,
-                    value_text,
                 );
             }
         }
@@ -460,40 +471,40 @@ impl SegmentRow {
 
     #[allow(clippy::too_many_arguments)]
     fn compute_passed_segment(
+        &self,
         timer: &Timer,
         config: &mut Config,
         segment: &livesplit_core::Segment,
         segment_comparison_time: time::Duration,
         previous_comparison_time: time::Duration,
         segment_comparison_duration: time::Duration,
-        label: &Label,
-        value_text: &mut String,
     ) {
         let split_time = Self::segment_split_time(segment, timer);
 
         if split_time == time::Duration::ZERO {
-            *value_text = String::from("--");
+            self.comparison_label.set_label("--");
         } else {
             let diff = split_time
                 .checked_sub(segment_comparison_time)
                 .unwrap_or_default();
 
-            if config.style.split_format == Some(String::from("Time")) {
-                *value_text = config
+            self.comparison_label.set_label(
+                config
                     .format
-                    .split
-                    .format_split_time(&segment.split_time(), timer.current_timing_method());
-            } else if segment_comparison_time != time::Duration::ZERO {
-                *value_text = Self::format_signed(diff, config);
-            }
-
+                    .segment
+                    .format_split_time(&segment.split_time(), timer.current_timing_method())
+                    .as_str(),
+            );
             if segment_comparison_time != time::Duration::ZERO {
+                self.delta_label
+                    .set_label(SegmentSuffix::format_signed(diff, config).as_str());
+
                 let gold_duration = Self::best_segment_duration(segment, timer);
                 let split_duration = split_time
                     .checked_sub(previous_comparison_time)
                     .unwrap_or_default();
 
-                label.add_css_class(Self::classify_split_label(
+                self.delta_label.add_css_class(Self::classify_split_label(
                     segment_comparison_duration,
                     split_duration,
                     diff,
@@ -506,17 +517,14 @@ impl SegmentRow {
 
     #[allow(clippy::too_many_arguments)]
     fn compute_current_segment(
+        &self,
         timer: &Timer,
         config: &mut Config,
         index: usize,
         segment: &livesplit_core::Segment,
         segment_comparison_time: time::Duration,
         previous_comparison_time: time::Duration,
-        row: &ActionRow,
-        value_text: &mut String,
     ) {
-        row.add_css_class("current-segment");
-
         let current_duration = Self::current_attempt_running_duration(timer);
         let diff = current_duration
             .checked_sub(segment_comparison_time)
@@ -537,7 +545,8 @@ impl SegmentRow {
             && (diff.is_positive()
                 || (gold_duration != time::Duration::ZERO && split_running_time >= gold_duration))
         {
-            *value_text = Self::format_signed(diff, config);
+            self.delta_label
+                .set_label(SegmentSuffix::format_signed(diff, config).as_str());
         }
     }
 
@@ -579,17 +588,6 @@ impl SegmentRow {
                 .unwrap_or_default()
                 .to_duration()
         }
-    }
-
-    fn get_natural_height() -> i32 {
-        // We create an action row and measure its natural height
-        let row = ActionRow::builder().title("Test").build();
-        let monospace_label = Label::builder()
-            .label("00:00:00")
-            .css_classes(["timer", "monospace"])
-            .build();
-        row.add_suffix(&monospace_label);
-        row.measure(gtk4::Orientation::Vertical, -1).0 + 5 // Account for padding
     }
 
     fn segment_split_time(segment: &livesplit_core::Segment, timer: &Timer) -> time::Duration {
@@ -651,7 +649,7 @@ impl SegmentRow {
             "~"
         };
         let abs = diff.abs();
-        let formatted = config.format.segment.format_segment_time(&abs);
+        let formatted = config.format.split.format_segment_time(&abs);
         format!("{sign}{formatted}")
     }
 

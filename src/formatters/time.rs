@@ -33,6 +33,25 @@ impl Default for TimeFormat {
 }
 
 impl TimeFormat {
+    pub fn new(
+        show_hours: bool,
+        show_minutes: bool,
+        show_seconds: bool,
+        show_decimals: bool,
+        decimal_places: u8,
+        dynamic: bool,
+    ) -> Self {
+        Self {
+            show_hours,
+            show_minutes,
+            show_seconds,
+            show_decimals,
+            decimal_places,
+            dynamic,
+            cached_pattern: None,
+        }
+    }
+
     fn get_pattern(&mut self, total_millis: Option<i64>) -> String {
         if self.dynamic || self.cached_pattern.is_none() {
             self.cached_pattern = Some(self.compute_pattern(total_millis));

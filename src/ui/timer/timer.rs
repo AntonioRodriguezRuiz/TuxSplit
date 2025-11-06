@@ -39,13 +39,14 @@ impl TimerUI {
         let mut config_ref = self.config.write().unwrap();
 
         // --- Root Clamp ---
-        let clamp = Clamp::builder().maximum_size(300).build();
+        let clamp = Clamp::builder().maximum_size(900).build();
 
         // === Outer VBox ===
         let livesplit_gtk = GtkBox::builder()
             .orientation(Vertical)
             .valign(Align::Center)
-            .halign(Align::Center)
+            .halign(Align::Fill)
+            .hexpand(true)
             .margin_top(24)
             .margin_bottom(24)
             .margin_start(24)
@@ -112,7 +113,6 @@ impl TimerUI {
                     .build()
                     .label(),
             )
-            .resizable(false)
             .build();
 
         let view = ToolbarView::new();

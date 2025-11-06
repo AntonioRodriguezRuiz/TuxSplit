@@ -130,7 +130,7 @@ impl SegmentComparison {
             // Build values
             let best_value_text = config
                 .format
-                .split
+                .segment
                 .format_split_time(&segment.best_segment_time(), timer.current_timing_method());
 
             let comparison_label_text = format!("{}:", format_label(timer.current_comparison()));
