@@ -2,15 +2,10 @@ use crate::config::Config;
 
 use adw::prelude::ActionRowExt as _;
 use adw::ActionRow;
-use glib::clone;
 use gtk4::{prelude::*, CenterBox};
-use gtk4::{
-    Adjustment, Align, Box as GtkBox, Label, ListBox, Orientation, ScrolledWindow, SelectionMode,
-};
+use gtk4::{Align, Box as GtkBox, Label, ListBox, Orientation, ScrolledWindow, SelectionMode};
 
 use livesplit_core::{Timer, TimerPhase};
-
-use tracing::debug;
 
 /// The body of the Timer UI:
 ///
@@ -151,7 +146,7 @@ impl SegmentList {
     }
 
     fn update_scroll_position(&mut self, timer: &Timer, config: &Config) {
-        let mut adjustment = self.scroller.vadjustment();
+        let adjustment = self.scroller.vadjustment();
 
         if let Some(cur) = timer.current_split_index() {
             let follow_from = config.style.segments_scroll_follow_from.unwrap_or(7);
@@ -403,7 +398,7 @@ impl SegmentSuffix {
         container.set_start_widget(Some(&delta_label));
         container.set_end_widget(Some(&comparison_label));
 
-        let mut suffix = Self {
+        let suffix = Self {
             container,
             delta_label,
             comparison_label,
@@ -753,7 +748,8 @@ mod classify_split_labels_tests {
         let diff = Duration::ZERO;
         let gold = Duration::ZERO;
 
-        let class = SegmentRow::classify_split_label(comparison, split_duration, diff, gold, false);
+        let class =
+            SegmentSuffix::classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(class == "goldsplit", "Expected goldsplit: got {class:?}",);
     }
 
@@ -764,7 +760,8 @@ mod classify_split_labels_tests {
         let diff = Duration::seconds(-2);
         let gold = Duration::seconds(9);
 
-        let class = SegmentRow::classify_split_label(comparison, split_duration, diff, gold, false);
+        let class =
+            SegmentSuffix::classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(class == "goldsplit", "Expected goldsplit: got {class:?}",);
     }
 
@@ -776,7 +773,8 @@ mod classify_split_labels_tests {
         let diff = Duration::ZERO;
         let gold = Duration::ZERO;
 
-        let class = SegmentRow::classify_split_label(comparison, split_duration, diff, gold, false);
+        let class =
+            SegmentSuffix::classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
             class == "goldsplit",
             "Expected goldsplit when gold duration is zero and not running: got {class:?}",
@@ -790,7 +788,8 @@ mod classify_split_labels_tests {
         let diff = Duration::seconds(1);
         let gold = Duration::seconds(8);
 
-        let class = SegmentRow::classify_split_label(comparison, split_duration, diff, gold, false);
+        let class =
+            SegmentSuffix::classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
             class == "gainedredsplit",
             "Expected redsplit when behind and gaining: got {class:?}",
@@ -804,7 +803,8 @@ mod classify_split_labels_tests {
         let diff = Duration::seconds(1);
         let gold = Duration::seconds(9);
 
-        let class = SegmentRow::classify_split_label(comparison, split_duration, diff, gold, false);
+        let class =
+            SegmentSuffix::classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
             class == "redsplit",
             "Expected redsplit when behind and not gaining: got {class:?}",
@@ -818,7 +818,8 @@ mod classify_split_labels_tests {
         let diff = Duration::seconds(-1);
         let gold = Duration::seconds(8);
 
-        let class = SegmentRow::classify_split_label(comparison, split_duration, diff, gold, false);
+        let class =
+            SegmentSuffix::classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
             class == "greensplit",
             "Expected greensplit when ahead and not losing against comparison_duration: got {class:?}",
@@ -832,7 +833,8 @@ mod classify_split_labels_tests {
         let diff = Duration::seconds(-1); // still ahead overall vs segment comparison target
         let gold = Duration::seconds(8);
 
-        let class = SegmentRow::classify_split_label(comparison, split_duration, diff, gold, false);
+        let class =
+            SegmentSuffix::classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
             class=="lostgreensplit",
             "Expected lostgreensplit when ahead (negative diff) but split exceeds comparison_duration: got {class:?}",
@@ -847,7 +849,8 @@ mod classify_split_labels_tests {
         let diff = Duration::ZERO;
         let gold = Duration::seconds(5);
 
-        let class = SegmentRow::classify_split_label(comparison, split_duration, diff, gold, false);
+        let class =
+            SegmentSuffix::classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
             class.is_empty(),
             "Expected no red/green class when diff is zero: got {class:?}",
