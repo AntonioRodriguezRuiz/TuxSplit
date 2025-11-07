@@ -72,8 +72,8 @@ impl TimeFormat {
         let show_seconds = self.show_seconds;
         let mut show_decimals = self.show_decimals;
 
-        if self.dynamic {
-            if let Some(ms) = total_millis {
+        if self.dynamic
+            && let Some(ms) = total_millis {
                 if ms < 60_000 {
                     // Under a minute: hide hours and minutes
                     show_hours = false;
@@ -93,7 +93,6 @@ impl TimeFormat {
                     }
                 }
             }
-        }
 
         let mut pattern = String::new();
         let push_sep = |sep: char, pat: &mut String| {

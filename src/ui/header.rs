@@ -10,7 +10,7 @@ use livesplit_core::Timer;
 
 use crate::config::Config;
 
-/// TuxSplitHeader
+/// `TuxSplitHeader`
 /// A top bar that renders the application title and a hamburger menu.
 pub struct TuxSplitHeader {
     header: adw::HeaderBar,
@@ -133,9 +133,9 @@ impl TuxSplitMenu {
             let t_binding = timer.clone();
             let c_binding = config.clone();
             file_chooser.connect_response(move |dialog, response| {
-                if response == gtk4::ResponseType::Ok {
-                    if let Some(file) = dialog.file() {
-                        if let Some(path) = file.path() {
+                if response == gtk4::ResponseType::Ok
+                    && let Some(file) = dialog.file()
+                        && let Some(path) = file.path() {
                             let mut c = c_binding.write().unwrap();
                             c.set_splits_path(path);
                             if let Some(run) = c.parse_run() {
@@ -144,8 +144,6 @@ impl TuxSplitMenu {
                                 c.configure_timer(&mut t);
                             }
                         }
-                    }
-                }
                 dialog.destroy();
             });
 

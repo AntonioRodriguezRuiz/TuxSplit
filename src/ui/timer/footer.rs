@@ -106,11 +106,6 @@ impl SegmentComparison {
         &self.wrapper
     }
 
-    pub fn set_lists(&mut self, primary_list: &ListBox, last_list: &ListBox) {
-        self.primary_list_ref.set(Some(primary_list));
-        self.last_list_ref.set(Some(last_list));
-    }
-
     pub fn update(&mut self, timer: &Timer, config: &mut Config) {
         self.rebuild(timer, config);
     }
@@ -126,12 +121,11 @@ impl SegmentComparison {
                 .upgrade()
                 .and_then(|l| l.selected_row())
                 .map(|row| row.index() as usize);
-            if idx.is_none() {
-                if let Some(last_list) = self.last_list_ref.upgrade() {
-                    if last_list.selected_row().is_some() {
-                        idx = Some(segments.len().saturating_sub(1));
-                    }
-                }
+            if idx.is_none()
+                && let Some(last_list) = self.last_list_ref.upgrade()
+                && last_list.selected_row().is_some()
+            {
+                idx = Some(segments.len().saturating_sub(1));
             }
             idx.unwrap_or(0)
         }

@@ -183,11 +183,10 @@ impl Config {
     }
 
     pub fn maybe_load_auto_splitter(&self, runtime: &auto_splitting::Runtime) {
-        if let Some(auto_splitter) = &self.general.auto_splitter {
-            if let Err(e) = runtime.load_script_blocking(auto_splitter.clone()) {
+        if let Some(auto_splitter) = &self.general.auto_splitter
+            && let Err(e) = runtime.load_script_blocking(auto_splitter.clone()) {
                 error!("Auto Splitter failed to load: {}", &e); // TODO: Create a custom error that
                                                                 // pops up in the UI
             }
-        }
     }
 }

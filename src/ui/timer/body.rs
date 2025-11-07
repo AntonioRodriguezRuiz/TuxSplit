@@ -11,8 +11,6 @@ use gtk4::{CenterBox, prelude::*};
 
 use livesplit_core::{Timer, TimerPhase};
 
-use tracing::debug;
-
 /// The body of the Timer UI:
 ///
 /// It owns a vertical container and a `SegmentList` that renders the splits.
@@ -156,11 +154,12 @@ impl SegmentList {
             self.update_rows_minimal(timer, config);
         }
 
-        if comp_changed && let Some(index) = selected_index {
-            if let Some(row) = self.list.row_at_index(index) {
-                self.list.grab_focus();
-                self.list.select_row(Some(&row));
-            }
+        if comp_changed
+            && let Some(index) = selected_index
+            && let Some(row) = self.list.row_at_index(index)
+        {
+            self.list.grab_focus();
+            self.list.select_row(Some(&row));
         }
 
         if phase_changed {
@@ -214,11 +213,11 @@ impl SegmentList {
             indices_vec.sort_unstable();
             indices_vec.dedup();
             for i in indices_vec {
-                if i < len {
-                    if let Some(row) = self.rows.get_mut(i) {
-                        let seg = &timer.run().segments()[i];
-                        row.refresh(timer, config, Some(cur), i, seg);
-                    }
+                if i < len
+                    && let Some(row) = self.rows.get_mut(i)
+                {
+                    let seg = &timer.run().segments()[i];
+                    row.refresh(timer, config, Some(cur), i, seg);
                 }
             }
         }
@@ -230,19 +229,19 @@ impl SegmentList {
 
         self.last_segment_list
             .connect_row_selected(move |_, row_opt| {
-                if row_opt.is_some() {
-                    if let Some(list_ref) = list_weak.upgrade() {
-                        list_ref.unselect_all();
-                    }
+                if row_opt.is_some()
+                    && let Some(list_ref) = list_weak.upgrade()
+                {
+                    list_ref.unselect_all();
                 }
             });
 
         let last_segment_list_weak = self.last_segment_list.downgrade();
         self.list.connect_row_selected(move |_, row_opt| {
-            if row_opt.is_some() {
-                if let Some(list_ref) = last_segment_list_weak.upgrade() {
-                    list_ref.unselect_all();
-                }
+            if row_opt.is_some()
+                && let Some(list_ref) = last_segment_list_weak.upgrade()
+            {
+                list_ref.unselect_all();
             }
         });
 
@@ -251,16 +250,14 @@ impl SegmentList {
         let last_list_for_down = self.last_segment_list.clone();
         let down_ctrl = EventControllerKey::new();
         down_ctrl.connect_key_pressed(move |_, keyval, _, _| {
-            if keyval == gdk::Key::Down {
-                if let Some(selected) = list_for_down.selected_row() {
-                    if selected.next_sibling().is_none() {
-                        if let Some(row) = last_list_for_down.row_at_index(0) {
-                            last_list_for_down.grab_focus();
-                            last_list_for_down.select_row(Some(&row));
-                            return Propagation::Stop;
-                        }
-                    }
-                }
+            if keyval == gdk::Key::Down
+                && let Some(selected) = list_for_down.selected_row()
+                && selected.next_sibling().is_none()
+                && let Some(row) = last_list_for_down.row_at_index(0)
+            {
+                last_list_for_down.grab_focus();
+                last_list_for_down.select_row(Some(&row));
+                return Propagation::Stop;
             }
             Propagation::Proceed
         });
@@ -271,21 +268,18 @@ impl SegmentList {
         let scroller_for_up = self.scroller.clone();
         let up_ctrl = EventControllerKey::new();
         up_ctrl.connect_key_pressed(move |_, keyval, _, _| {
-            if keyval == gdk::Key::Up {
-                if let Some(selected) = last_list_for_up.selected_row() {
-                    if selected.index() == 0 {
-                        if let Some(last) = list_for_up.last_child() {
-                            if let Ok(row) = last.downcast::<gtk4::ListBoxRow>() {
-                                list_for_up.grab_focus();
-                                list_for_up.select_row(Some(&row));
-                                scroller_for_up
-                                    .vadjustment()
-                                    .set_value(scroller_for_up.vadjustment().upper());
-                                return Propagation::Stop;
-                            }
-                        }
-                    }
-                }
+            if keyval == gdk::Key::Up
+                && let Some(selected) = last_list_for_up.selected_row()
+                && selected.index() == 0
+                && let Some(last) = list_for_up.last_child()
+                && let Ok(row) = last.downcast::<gtk4::ListBoxRow>()
+            {
+                list_for_up.grab_focus();
+                list_for_up.select_row(Some(&row));
+                scroller_for_up
+                    .vadjustment()
+                    .set_value(scroller_for_up.vadjustment().upper());
+                return Propagation::Stop;
             }
             Propagation::Proceed
         });
@@ -370,12 +364,11 @@ impl SegmentList {
     fn compute_scroller_height(timer: &Timer, config: &mut Config) -> i32 {
         let segments_requested = config.style.max_segments_displayed.unwrap_or(10);
 
-        let height_request = if segments_requested < timer.run().len() - 1 {
+        if segments_requested < timer.run().len() - 1 {
             SegmentRow::get_natural_height() * segments_requested as i32
         } else {
             SegmentRow::get_natural_height() * (timer.run().len() as i32 - 1)
-        };
-        height_request
+        }
     }
 }
 

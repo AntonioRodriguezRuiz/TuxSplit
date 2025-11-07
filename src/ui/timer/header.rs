@@ -5,7 +5,7 @@ use gtk4::{Align, Box as GtkBox, Label, Orientation::Vertical};
 
 use livesplit_core::Timer;
 
-/// TimerHeader
+/// `TimerHeader`
 /// Renders the top section of the timer UI:
 /// - Game name (styled as `title-2`)
 /// - Category (styled as `heading`)
@@ -48,7 +48,7 @@ impl TimerHeader {
     }
 }
 
-/// RunInfo
+/// `RunInfo`
 ///
 /// Holds and renders:
 /// - Game name (Label with CSS class `title-2`)
