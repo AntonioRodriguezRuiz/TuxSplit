@@ -1,11 +1,17 @@
 use crate::config::Config;
 
-use adw::prelude::ActionRowExt as _;
 use adw::ActionRow;
-use gtk4::{prelude::*, CenterBox};
-use gtk4::{Align, Box as GtkBox, Label, ListBox, Orientation, ScrolledWindow, SelectionMode};
+use adw::prelude::ActionRowExt as _;
+use glib::Propagation;
+use gtk4::{
+    Align, Box as GtkBox, EventControllerKey, Label, ListBox, Orientation, ScrolledWindow,
+    SelectionMode, gdk,
+};
+use gtk4::{CenterBox, prelude::*};
 
 use livesplit_core::{Timer, TimerPhase};
+
+use tracing::debug;
 
 /// The body of the Timer UI:
 ///
@@ -49,6 +55,7 @@ pub struct SegmentList {
     container: GtkBox,
     scroller: ScrolledWindow,
     list: ListBox,
+    last_segment_list: ListBox,
     rows: Vec<SegmentRow>,
     last_phase: TimerPhase,
     last_comparison: String,
@@ -62,7 +69,7 @@ impl SegmentList {
             .hexpand(true)
             .vexpand(false)
             .spacing(0)
-            .css_classes(["splits-container"])
+            .css_classes(["splits-container", "no-background"])
             .build();
 
         let height_request = SegmentList::compute_scroller_height(timer, config);
@@ -72,22 +79,30 @@ impl SegmentList {
             .vexpand(false)
             .min_content_height(SegmentRow::get_natural_height())
             .height_request(height_request)
+            .css_classes(["no-background"])
             .kinetic_scrolling(true)
             .build();
 
         let list = ListBox::builder()
             .selection_mode(SelectionMode::Single)
             .hexpand(true)
-            .css_classes(["split-boxed-list"])
+            .css_classes(["split-boxed-list", "no-background"])
+            .build();
+        let last_segment_list = ListBox::builder()
+            .selection_mode(SelectionMode::Single)
+            .hexpand(true)
+            .css_classes(["last-split-boxed-list", "no-background"])
             .build();
 
         container.append(&scroller);
+        container.append(&last_segment_list);
         scroller.set_child(Some(&list));
 
         let mut this = Self {
             container,
             scroller,
             list,
+            last_segment_list,
             rows: Vec::new(),
             last_phase: timer.current_phase(),
             last_comparison: timer.current_comparison().to_owned(),
@@ -99,6 +114,7 @@ impl SegmentList {
         };
         this.build_rows(timer, config);
         this.list.unselect_all();
+        this.enable_multilateral_selection();
         this
     }
 
@@ -132,12 +148,23 @@ impl SegmentList {
             self.update_rows_minimal(timer, config);
         }
 
+        if comp_changed && let Some(index) = selected_index {
+            if let Some(row) = self.list.row_at_index(index) {
+                self.list.grab_focus();
+                self.list.select_row(Some(&row));
+            }
+        }
+
         if phase_changed {
             if phase.is_not_running() {
                 // Go to the beggining of the split list after a reset
                 self.update_scroll_position(timer, config);
+            } else if phase.is_ended() {
+                self.last_segment_list.grab_focus();
+                self.last_segment_list
+                    .select_row(Some(&self.last_segment_list.row_at_index(0).unwrap()));
             }
-            self.update_selection_policy(timer, phase, selected_index);
+            self.update_selection_policy(phase);
         }
 
         self.last_phase = phase;
@@ -167,17 +194,10 @@ impl SegmentList {
     }
 
     fn get_selected_row_index(&mut self, timer: &Timer, phase: TimerPhase) -> Option<i32> {
-        let mut selected_index: Option<i32> = None;
-        if self.last_phase != phase {
-            for (index, _) in timer.run().segments().iter().enumerate() {
-                if let Some(row) = self.list.row_at_index(index as i32) {
-                    if row.is_selected() {
-                        selected_index = Some(index as i32);
-                    }
-                }
-            }
-        }
-        selected_index
+        self.list
+            .selected_row()
+            .map(|row| row.index())
+            .or_else(None);
     }
 
     fn update_rows_minimal(&mut self, timer: &Timer, config: &mut Config) {
@@ -199,41 +219,111 @@ impl SegmentList {
         }
     }
 
-    fn update_selection_policy(
-        &mut self,
-        timer: &Timer,
-        phase: TimerPhase,
-        selected_index: Option<i32>,
-    ) {
+    fn enable_multilateral_selection(&self) {
+        // Click navigation
+        let list_weak = self.list.downgrade();
+
+        self.last_segment_list
+            .connect_row_selected(move |_, row_opt| {
+                if row_opt.is_some() {
+                    if let Some(list_ref) = list_weak.upgrade() {
+                        list_ref.unselect_all();
+                    }
+                }
+            });
+
+        let last_segment_list_weak = self.last_segment_list.downgrade();
+        self.list.connect_row_selected(move |_, row_opt| {
+            if row_opt.is_some() {
+                if let Some(list_ref) = last_segment_list_weak.upgrade() {
+                    list_ref.unselect_all();
+                }
+            }
+        });
+
+        // Keyboard navigation
+        let list_for_down = self.list.clone();
+        let last_list_for_down = self.last_segment_list.clone();
+        let down_ctrl = EventControllerKey::new();
+        down_ctrl.connect_key_pressed(move |_, keyval, _, _| {
+            if keyval == gdk::Key::Down {
+                if let Some(selected) = list_for_down.selected_row() {
+                    if selected.next_sibling().is_none() {
+                        if let Some(row) = last_list_for_down.row_at_index(0) {
+                            last_list_for_down.grab_focus();
+                            last_list_for_down.select_row(Some(&row));
+                            return Propagation::Stop;
+                        }
+                    }
+                }
+            }
+            Propagation::Proceed
+        });
+        self.list.add_controller(down_ctrl);
+
+        let list_for_up = self.list.clone();
+        let last_list_for_up = self.last_segment_list.clone();
+        let scroller_for_up = self.scroller.clone();
+        let up_ctrl = EventControllerKey::new();
+        up_ctrl.connect_key_pressed(move |_, keyval, _, _| {
+            if keyval == gdk::Key::Up {
+                if let Some(selected) = last_list_for_up.selected_row() {
+                    if selected.index() == 0 {
+                        if let Some(last) = list_for_up.last_child() {
+                            if let Ok(row) = last.downcast::<gtk4::ListBoxRow>() {
+                                list_for_up.grab_focus();
+                                list_for_up.select_row(Some(&row));
+                                scroller_for_up
+                                    .vadjustment()
+                                    .set_value(scroller_for_up.vadjustment().upper());
+                                return Propagation::Stop;
+                            }
+                        }
+                    }
+                }
+            }
+            Propagation::Proceed
+        });
+        self.last_segment_list.add_controller(up_ctrl);
+    }
+
+    fn update_selection_policy(&mut self, phase: TimerPhase) {
         match phase {
             TimerPhase::Running | TimerPhase::Paused => {
                 self.list.set_selection_mode(SelectionMode::None);
                 self.list.unselect_all();
+                self.last_segment_list
+                    .set_selection_mode(SelectionMode::Single);
+                self.last_segment_list.unselect_all();
             }
             TimerPhase::Ended => {
                 self.list.set_selection_mode(SelectionMode::Single);
-                let last_index = timer.run().segments().len().saturating_sub(1) as i32;
-                let idx = selected_index.unwrap_or(last_index);
-                if let Some(row) = self.list.row_at_index(idx) {
-                    self.list.select_row(Some(&row));
+                self.last_segment_list
+                    .set_selection_mode(SelectionMode::Single);
+                if let Some(row) = self.last_segment_list.row_at_index(0) {
+                    self.last_segment_list.select_row(Some(&row));
                 }
             }
             _ => {
                 self.list.set_selection_mode(SelectionMode::Single);
                 self.list.unselect_all();
+                self.last_segment_list
+                    .set_selection_mode(SelectionMode::Single);
+                self.last_segment_list.unselect_all();
             }
         }
     }
 
     fn rebuild_rows(&mut self, timer: &Timer, config: &mut Config) {
-        // Clear GTK children and local row cache
-        self.container.remove(&self.container.last_child().unwrap());
         self.build_rows(timer, config);
     }
 
     fn build_rows(&mut self, timer: &Timer, config: &mut Config) {
         while let Some(child) = self.list.first_child() {
             self.list.remove(&child);
+        }
+        while let Some(child) = self.last_segment_list.first_child() {
+            self.last_segment_list.remove(&child);
         }
         self.rows.clear();
 
@@ -245,29 +335,7 @@ impl SegmentList {
             if index < timer.run().len() - 1 {
                 self.list.append(row.row());
             } else {
-                let last_split_list = ListBox::builder()
-                    .selection_mode(SelectionMode::Single)
-                    .css_classes(["last-split-boxed-list"])
-                    .build();
-                last_split_list.append(row.row());
-                self.container.append(&last_split_list);
-                row.row().set_activatable(true);
-
-                // Handle selecting and deselecting manually
-                // let row_clone = row.row().clone();
-                // let list_weak = self.list.downgrade();
-                // row.row().connect_activated(move |_| {
-                //     if let Some(list_ref) = list_weak.upgrade() {
-                //         list_ref.unselect_all();
-                //     }
-                //     row_clone.add_css_class("selected");
-                // });
-                // let row_weak = row.row().downgrade();
-                // self.list.connect_row_selected(move |_, _| {
-                //     if let Some(row_ref) = row_weak.upgrade() {
-                //         row_ref.remove_css_class("selected");
-                //     }
-                // });
+                self.last_segment_list.append(row.row());
             }
             self.rows.push(row);
         }
@@ -842,9 +910,8 @@ mod classify_split_labels_tests {
         let class =
             SegmentSuffix::classify_split_label(comparison, split_duration, diff, gold, false);
         assert!(
-            class=="lostgreensplit",
+            class == "lostgreensplit",
             "Expected lostgreensplit when ahead (negative diff) but split exceeds comparison_duration: got {class:?}",
-
         );
     }
 

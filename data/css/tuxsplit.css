@@ -58,8 +58,12 @@ label {
 
 /* CUSTOM STYLES FOR SEGMENT LISTING */
 
+.no-background {
+    background-color: transparent;
+    border: none;
+}
+
 .splits-container {
-    background-clip: padding-box;
     border-radius: 12px;
     border: 1px solid @window_bg_color;
     box-shadow:
