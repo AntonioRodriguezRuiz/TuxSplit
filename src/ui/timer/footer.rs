@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::formatters::label::format_label;
+use crate::ui::info::AdditionalInfo;
 
 use glib;
 use gtk4::prelude::{BoxExt as _, WidgetExt as _, *};
@@ -10,9 +11,11 @@ use gtk4::{
 use livesplit_core::{Timer, TimerPhase};
 
 pub struct TimerFooter {
-    container: CenterBox,
+    container: GtkBox,
+    timer_container: CenterBox,
     segment_comparison: SegmentComparison,
     running_timer: RunningTimer,
+    additional_info: AdditionalInfoFooter,
 }
 
 impl TimerFooter {
@@ -22,37 +25,91 @@ impl TimerFooter {
         primary_list: &ListBox,
         last_segment_list: &ListBox,
     ) -> Self {
-        let container = CenterBox::builder()
+        let container = GtkBox::builder()
+            .orientation(Vertical)
+            .halign(Align::Fill)
+            .hexpand(true)
+            .spacing(12)
+            .build();
+
+        let timer_container = CenterBox::builder()
             .orientation(Horizontal)
-            .width_request(300)
+            .hexpand(true)
             .build();
 
         let segment_comparison =
             SegmentComparison::new(timer, config, primary_list, last_segment_list);
         let running_timer = RunningTimer::new(timer, config);
 
-        container.set_start_widget(Some(segment_comparison.container()));
-        container.set_end_widget(Some(running_timer.container()));
+        timer_container.set_start_widget(Some(segment_comparison.container()));
+        timer_container.set_end_widget(Some(running_timer.container()));
+
+        let additional_info = AdditionalInfoFooter::new(timer, config);
+
+        let separator = gtk4::Separator::builder().build();
+        container.append(&timer_container);
+        container.append(&separator);
+        container.append(&additional_info.container());
 
         Self {
             container,
+            timer_container,
             segment_comparison,
             running_timer,
+            additional_info,
         }
     }
 
-    pub fn container(&self) -> &CenterBox {
+    pub fn container(&self) -> &GtkBox {
         &self.container
     }
 
     pub fn refresh(&mut self, timer: &Timer, config: &mut Config) {
         self.segment_comparison.update(timer, config);
         self.running_timer.update(timer, config);
+        self.additional_info.update(timer, config);
 
-        self.container
+        self.timer_container
             .set_start_widget(Some(self.segment_comparison.container()));
-        self.container
+        self.timer_container
             .set_end_widget(Some(self.running_timer.container()));
+    }
+}
+
+pub struct AdditionalInfoFooter {
+    additional_info: Vec<Box<dyn AdditionalInfo>>,
+}
+
+impl AdditionalInfoFooter {
+    pub fn new(timer: &Timer, config: &mut Config) -> Self {
+        let additional_info: Vec<Box<dyn AdditionalInfo>> = vec![
+            Box::new(crate::ui::info::PrevSegmentDiffInfo::new(timer, config)),
+            Box::new(crate::ui::info::PrevSegmentBestInfo::new(timer, config)),
+        ];
+
+        // additional_info.push();
+
+        Self { additional_info }
+    }
+
+    pub fn update(&mut self, timer: &Timer, config: &mut Config) {
+        for info in &mut self.additional_info {
+            info.update(timer, config);
+        }
+    }
+
+    pub fn container(&self) -> GtkBox {
+        let container = GtkBox::builder()
+            .orientation(Vertical)
+            .halign(Align::Fill)
+            .hexpand(true)
+            .build();
+
+        for info in &self.additional_info {
+            container.append(info.container());
+        }
+
+        container
     }
 }
 

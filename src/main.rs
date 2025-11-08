@@ -1,6 +1,7 @@
 mod config;
 mod formatters;
 mod ui;
+mod utils;
 
 use std::sync::{Arc, RwLock};
 

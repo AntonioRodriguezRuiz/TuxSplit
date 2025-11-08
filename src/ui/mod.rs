@@ -1,4 +1,5 @@
 pub mod header;
+pub mod info;
 pub mod timer;
 
 pub use header::TuxSplitHeader;
