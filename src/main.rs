@@ -99,17 +99,6 @@ impl TuxSplit {
     }
 
     fn load_styles() {
-        if let Some(resources_file) = find_in_xdg_dirs("tuxsplit.gresource")
-            && resources_file.is_file()
-        {
-            info!("Registered GResource from {}", resources_file.display());
-            let res = gio::Resource::load(resources_file)
-                .expect("Could not load GResource from XDG_DATA_DIRS");
-            gio::resources_register(&res);
-        } else {
-            panic!("Could not load resources");
-        }
-
         let display = Display::default().expect("Could not connect to a display");
         let css_provider = CssProvider::new();
         css_provider.load_from_resource(RESOURCE_CSS);

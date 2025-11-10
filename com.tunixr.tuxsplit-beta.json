@@ -1,0 +1,52 @@
+{
+  "app_id": "com.tunixr.tuxsplit-beta",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "49",
+  "sdk": "org.gnome.Sdk",
+  "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
+  "command": "tuxsplit",
+  "branch": "stable",
+  "separate-locales": false,
+  "finish-args": [
+    "--socket=x11",
+    "--socket=wayland",
+    "--socket=session-bus",
+    "--filesystem=home",
+    "--filesystem=xdg-run/gvfsd",
+    "--device=dri",
+    "--share=ipc",
+    "--env=GDK_BACKEND=x11",
+    "--env=XDG_DATA_DIRS=/app/share:/usr/share"
+  ],
+  "build-options": {
+    "append-path": "/usr/lib/sdk/rust-stable/bin",
+    "env": {
+      "CARGO_HOME": "/run/build/tuxsplit/cargo-home",
+      "RUSTFLAGS": "-C debuginfo=1",
+      "RUST_BACKTRACE": "1"
+    },
+    "build_args": ["--share=network"]
+  },
+  "modules": [
+    {
+      "name": "tuxsplit",
+      "buildsystem": "simple",
+      "build-commands": [
+        "cargo build --release --locked",
+        "meson setup build --prefix=/app",
+        "meson compile -C build",
+        "meson install -C build",
+        "mkdir -p /app/share/applications",
+        "cat > /app/share/applications/com.tunixr.tuxsplit-beta.desktop <<'EOF'\n[Desktop Entry]\nName=TuxSplit\nComment=Speedrun timer for LiveSplit splits\nExec=tuxsplit\nTerminal=false\nType=Application\nCategories=Game;Utility;\nStartupNotify=true\nEOF"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/TunixR/tuxsplit.git",
+          "branch": "main"
+        }
+      ]
+    }
+  ],
+  "cleanup": ["/share/man", "/share/doc", "/share/gtk-doc", "/include"]
+}
