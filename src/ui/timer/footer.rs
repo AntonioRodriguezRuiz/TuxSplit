@@ -563,8 +563,8 @@ mod footer_ui_tests {
             "Expected 'caption' class"
         );
         assert!(comp_value.has_css_class("timer"), "Expected 'timer' class");
-        // No comparison times yet -> "0.00"
-        assert_eq!(comp_value.label().as_str(), "0.00");
+        // No comparison times yet -> "--"
+        assert_eq!(comp_value.label().as_str(), "--");
 
         // Ensure update works without panics and keeps structure
         sc.update(&timer, &mut config);
