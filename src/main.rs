@@ -67,7 +67,6 @@ pub struct TuxSplit {
     pub timer: Arc<RwLock<Timer>>,
     pub runtime: Runtime,
     pub config: Arc<RwLock<Config>>,
-    pub hotkey_system: Arc<RwLock<HotkeySystem>>,
 }
 
 impl Default for TuxSplit {
@@ -82,7 +81,7 @@ impl TuxSplit {
     ///
     /// Will panic if the timer or hotkey system cannot be created.
     pub fn new() -> Self {
-        let config = load_config();
+        let mut config = load_config();
         let run = config.parse_run_or_default();
 
         let timer = Timer::new(run).expect("Failed to create timer");
@@ -94,7 +93,7 @@ impl TuxSplit {
         config.configure_timer(&mut stimer.write().unwrap());
         config.maybe_load_auto_splitter(&runtime);
 
-        let Some(hotkey_system) = config.create_hotkey_system(stimer.clone()) else {
+        let Some(_) = config.create_hotkey_system(stimer.clone()) else {
             panic!("Could not load HotkeySystem")
         };
 
@@ -102,7 +101,6 @@ impl TuxSplit {
             timer: stimer,
             runtime,
             config: Arc::new(RwLock::new(config)),
-            hotkey_system: Arc::new(RwLock::new(hotkey_system)),
         }
     }
 

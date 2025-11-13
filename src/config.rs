@@ -15,7 +15,7 @@ use std::{
 };
 use tracing::error;
 
-#[derive(Default, Deserialize, Serialize, Debug, Clone)]
+#[derive(Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     #[serde(default)]
@@ -30,6 +30,34 @@ pub struct Config {
     pub format: Format,
     #[serde(default)]
     connections: Connections,
+    #[serde(skip)]
+    hotkey_system: Option<HotkeySystem>,
+}
+
+impl std::fmt::Debug for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Config")
+            .field("general", &self.general)
+            .field("window", &self.window)
+            .field("style", &self.style)
+            .field("hotkeys", &self.hotkeys)
+            .field("format", &self.format)
+            .finish()
+    }
+}
+
+impl Clone for Config {
+    fn clone(&self) -> Self {
+        Self {
+            general: self.general.clone(),
+            window: self.window.clone(),
+            style: self.style.clone(),
+            hotkeys: self.hotkeys.clone(),
+            format: self.format.clone(),
+            connections: self.connections.clone(),
+            hotkey_system: None,
+        }
+    }
 }
 
 #[derive(Default, Deserialize, Serialize, Debug, Clone)]
@@ -130,8 +158,48 @@ impl Config {
         self.general.splits = Some(path);
     }
 
-    pub fn create_hotkey_system(&self, timer: SharedTimer) -> Option<HotkeySystem> {
-        HotkeySystem::with_config(timer, self.hotkeys).ok()
+    pub fn disable_hotkey_system(&mut self) {
+        if self.hotkey_system.is_none() {
+            return;
+        }
+        let hotkey_system: &mut HotkeySystem = self.hotkey_system.get_or_insert(
+            // Will never happen
+            HotkeySystem::with_config(
+                Timer::new(self.parse_run_or_default())
+                    .expect("Failed to create timer")
+                    .into_shared(),
+                self.hotkeys.clone(),
+            )
+            .expect("Failed to create HotkeySystem"),
+        );
+        hotkey_system.deactivate();
+    }
+
+    pub fn enable_hotkey_system(&mut self) {
+        if self.hotkey_system.is_none() {
+            return;
+        }
+        let hotkey_system: &mut HotkeySystem = self.hotkey_system.get_or_insert(
+            // Will never happen
+            HotkeySystem::with_config(
+                Timer::new(self.parse_run_or_default())
+                    .expect("Failed to create timer")
+                    .into_shared(),
+                self.hotkeys.clone(),
+            )
+            .expect("Failed to create HotkeySystem"),
+        );
+        hotkey_system.activate();
+    }
+
+    pub fn create_hotkey_system(&mut self, timer: SharedTimer) -> Option<()> {
+        let hotkey_system_res = HotkeySystem::with_config(timer, self.hotkeys);
+        if let Ok(hotkey_system) = hotkey_system_res {
+            self.hotkey_system = Some(hotkey_system);
+            Some(())
+        } else {
+            None
+        }
     }
 
     pub fn configure_timer(&self, timer: &mut Timer) {

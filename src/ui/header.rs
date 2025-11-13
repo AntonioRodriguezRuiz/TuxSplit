@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
-use adw::prelude::*;
 use adw::{self, AboutDialog, AlertDialog};
+use adw::{PreferencesDialog, prelude::*};
 use gtk4::{
     Align, Box as GtkBox, FileChooserDialog, FileFilter, Label, ListBox, MenuButton,
     Orientation::Vertical, gio,
@@ -117,8 +117,12 @@ impl TuxSplitMenu {
         config: Arc<RwLock<Config>>,
     ) -> gio::SimpleAction {
         let action = gio::SimpleAction::new("edit-splits", None);
+        let config_binding = config.clone();
         action.connect_activate(move |_, _| {
             let editor = SplitEditor::new(timer.clone(), config.clone());
+
+            temporary_keybinds_disable(config_binding.clone(), editor.dialog());
+
             editor.present();
         });
         action
@@ -222,6 +226,9 @@ impl TuxSplitMenu {
         let action = gio::SimpleAction::new("settings", None);
         action.connect_activate(move |_, _| {
             let prefs = TimerPreferencesDialog::new(timer_binding.clone(), config_binding.clone());
+
+            temporary_keybinds_disable(config_binding.clone(), &prefs.dialog());
+
             prefs.present(&parent_for_settings);
         });
         action
@@ -242,6 +249,19 @@ impl TuxSplitMenu {
         });
         action
     }
+}
+
+fn temporary_keybinds_disable(config_binding: Arc<RwLock<Config>>, widget: &PreferencesDialog) {
+    // Disable and enable keybinds while settings are open
+    let config_rebinding = config_binding.clone();
+    {
+        let mut c = config_rebinding.write().unwrap();
+        c.disable_hotkey_system();
+    }
+    widget.connect_closed(move |_| {
+        let mut c = config_rebinding.write().unwrap();
+        c.enable_hotkey_system();
+    });
 }
 
 fn simple_title_header(title: &str) -> adw::HeaderBar {

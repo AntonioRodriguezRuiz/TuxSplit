@@ -46,6 +46,10 @@ impl TimerPreferencesDialog {
         this
     }
 
+    pub fn dialog(&self) -> &PreferencesDialog {
+        &self.dialog
+    }
+
     pub fn present(&self, parent: &impl IsA<gtk::Widget>) {
         self.dialog.present(Some(parent));
     }

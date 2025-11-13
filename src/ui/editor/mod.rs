@@ -40,6 +40,10 @@ impl SplitEditor {
         this
     }
 
+    pub fn dialog(&self) -> &PreferencesDialog {
+        &self.dialog
+    }
+
     pub fn present(&self) {
         self.dialog.present(None::<&gtk4::Widget>);
     }
