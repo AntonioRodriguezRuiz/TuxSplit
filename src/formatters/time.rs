@@ -328,7 +328,7 @@ impl TimeFormat {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct TimeParseError;
+pub struct TimeParseError;
 
 impl std::fmt::Display for TimeParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -337,37 +337,41 @@ impl std::fmt::Display for TimeParseError {
 }
 
 pub fn parse_hms(input: &str) -> Result<TimeDuration, TimeParseError> {
-    // h:m:s.sss...
-    let mut parts = input.split(':');
+    let parts: Vec<&str> = input.split(':').collect();
 
-    let h = parts.next().ok_or(TimeParseError)?;
-    let m = parts.next().ok_or(TimeParseError)?;
-    let s = parts.next().ok_or(TimeParseError)?;
+    let (hours, mins, secs_part) = match parts.len() {
+        1 => (0u64, 0u64, parts[0]), // s.frac
+        2 => (
+            0u64,
+            parts[0].parse().map_err(|_| TimeParseError)?,
+            parts[1],
+        ), // m:s.frac
+        3 => {
+            // h:m:s.frac
+            let h = parts[0].parse().map_err(|_| TimeParseError)?;
+            let m = parts[1].parse().map_err(|_| TimeParseError)?;
+            (h, m, parts[2])
+        }
+        _ => return Err(TimeParseError),
+    };
 
-    // seconds part must contain decimals
-    let (s_whole, s_frac) = s.split_once('.').ok_or(TimeParseError)?;
+    let (s_whole, s_frac) = secs_part.split_once('.').ok_or(TimeParseError)?;
     if s_frac.is_empty() {
         return Err(TimeParseError);
     }
 
-    let hours: u64 = h.parse().map_err(|_| TimeParseError)?;
-    let mins: u64 = m.parse().map_err(|_| TimeParseError)?;
     let secs: u64 = s_whole.parse().map_err(|_| TimeParseError)?;
 
     if hours >= 60 || mins >= 60 || secs >= 60 {
         return Err(TimeParseError);
     }
 
-    // fractional seconds → nanos
-    // We support arbitrary length; scale to nanoseconds.
+    // Normalize
     let mut frac_str = s_frac.to_string();
-    let len = frac_str.len();
-    if len > 9 {
-        // truncate to nanosecond precision
+    if frac_str.len() > 9 {
         frac_str.truncate(9);
-    } else if len < 9 {
-        // pad to nanoseconds
-        frac_str.push_str(&"0".repeat(9 - len));
+    } else if frac_str.len() < 9 {
+        frac_str.push_str(&"0".repeat(9 - frac_str.len()));
     }
 
     let nanos: u64 = frac_str.parse().map_err(|_| TimeParseError)?;
@@ -610,6 +614,34 @@ mod parse_tests {
     }
 
     #[test]
+    fn test_seconds_only() {
+        let d = parse_hms("12.34").unwrap();
+        assert_eq!(d.whole_seconds(), 12);
+        assert_eq!(d.subsec_nanoseconds(), 340_000_000);
+    }
+
+    #[test]
+    fn test_seconds_only_long_fraction() {
+        let d = parse_hms("8.123456789555").unwrap();
+        assert_eq!(d.whole_seconds(), 8);
+        assert_eq!(d.subsec_nanoseconds(), 123_456_789);
+    }
+
+    #[test]
+    fn test_minutes_seconds() {
+        let d = parse_hms("1:45.23").unwrap();
+        assert_eq!(d.whole_seconds(), 105);
+        assert_eq!(d.subsec_nanoseconds(), 230_000_000);
+    }
+
+    #[test]
+    fn test_minutes_seconds_large_fraction() {
+        let d = parse_hms("3:59.987654321777").unwrap();
+        assert_eq!(d.whole_seconds(), 3 * 60 + 59);
+        assert_eq!(d.subsec_nanoseconds(), 987_654_321);
+    }
+
+    #[test]
     fn test_invalid_format() {
         assert_eq!(parse_hms("1:2").err(), Some(TimeParseError));
         assert_eq!(parse_hms("1:2:3").err(), Some(TimeParseError));
@@ -626,5 +658,25 @@ mod parse_tests {
     #[test]
     fn test_parse_int_error() {
         assert_eq!(parse_hms("x:0:1.1").err(), Some(TimeParseError));
+    }
+
+    #[test]
+    fn test_seconds_only_out_of_range() {
+        assert_eq!(parse_hms("60.1").err(), Some(TimeParseError));
+    }
+
+    #[test]
+    fn test_minutes_seconds_out_of_range() {
+        assert_eq!(parse_hms("90:5.1").err(), Some(TimeParseError)); // minutes ≥ 60
+    }
+
+    #[test]
+    fn test_seconds_only_missing_fraction() {
+        assert_eq!(parse_hms("12").err(), Some(TimeParseError));
+    }
+
+    #[test]
+    fn test_minutes_seconds_missing_fraction() {
+        assert_eq!(parse_hms("1:44").err(), Some(TimeParseError));
     }
 }
