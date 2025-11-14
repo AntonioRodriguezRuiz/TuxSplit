@@ -395,8 +395,10 @@ impl SegmentRow {
         index: usize,
         segment: &livesplit_core::Segment,
     ) -> Self {
-        let title = segment.name().to_owned();
-        let row = ActionRow::builder().title(&title).hexpand(true).build();
+        let row = ActionRow::builder()
+            .title(segment.name())
+            .hexpand(true)
+            .build();
 
         if Some(index) == opt_current_segment_index {
             row.add_css_class("current-segment");
