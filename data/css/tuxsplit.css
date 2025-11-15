@@ -129,3 +129,73 @@ label {
 .current-segment {
     background-color: alpha(@accent_bg_color, 0.5);
 }
+
+/* Table */
+.table {
+    border-radius: 12px;
+    border-color: @card_bg_color;
+    background-color: @window_bg_color;
+    border-style: solid;
+    border-width: 2px;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 6, 0.03),
+        0 2px 6px 2px rgba(0, 0, 6, 0.03);
+}
+
+.table header > * {
+    border-color: @card_bg_color;
+    border-bottom-width: 0px;
+    border-top-width: 0px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-style: solid;
+}
+.table header > *:first-child {
+    border-left-width: 0px;
+}
+.table header > *:last-child {
+    border-right-width: 0px;
+}
+.table header label {
+    color: @view_fg_color;
+    text-decoration-line: underline;
+}
+
+.table cell {
+    padding: 0px;
+    border-radius: 3px;
+    border-color: @view_bg_color;
+    border-style: solid;
+    border-width: 1px;
+}
+.table label,
+.table entry {
+    border-radius: 0;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-right: 18px;
+    padding-left: 18px;
+}
+.table row entry {
+    background-color: @card_bg_color;
+}
+
+.table row:last-child cell:first-child {
+    border-bottom-left-radius: 10px;
+}
+.table row:last-child cell:first-child entry {
+    border-bottom-left-radius: 10px;
+}
+.table row:last-child cell:first-child entry:focus-within {
+    border-bottom-left-radius: 10px;
+}
+
+.table row:last-child {
+    border-bottom-right-radius: 7.5px;
+}
+.table row:last-child cell:last-child entry {
+    border-bottom-right-radius: 7.5px;
+}
+.table row:last-child cell:last-child entry:focus-within {
+    border-bottom-right-radius: 7.5px;
+}

@@ -2,13 +2,14 @@ use livesplit_core::{Run, Timer, TimingMethod};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use gtk4::{ColumnView, ColumnViewColumn, prelude::*};
+use gtk4::{ColumnView, ColumnViewColumn, ScrolledWindow, prelude::*};
 
 use crate::formatters::time::parse_hms;
 use crate::ui::editor::row::SegmentRow;
 use crate::ui::editor::{EditorContext, SegmentsModel};
 
 pub struct SegmentsEditor {
+    scroller: ScrolledWindow,
     table: ColumnView,
     model: gtk4::SingleSelection,
     timer: Arc<RwLock<Timer>>,
@@ -21,7 +22,6 @@ pub struct SegmentsEditor {
 impl SegmentsEditor {
     pub fn new(timer: Arc<RwLock<Timer>>) -> Rc<Self> {
         let run_snapshot = timer.read().unwrap().run().clone();
-
         let timing_method = Arc::new(RwLock::new(TimingMethod::RealTime));
 
         let segments_model = SegmentsModel::new();
@@ -29,12 +29,29 @@ impl SegmentsEditor {
         let model_store = segments_model.store();
         let model = gtk4::SingleSelection::new(Some(model_store));
 
-        let table = ColumnView::builder().vexpand(true).build();
+        let table = ColumnView::builder()
+            .vscroll_policy(gtk4::ScrollablePolicy::Natural)
+            .reorderable(false)
+            .css_classes(["table"])
+            .vexpand(false)
+            .build();
 
         let context = EditorContext::new(timer.clone());
         context.set_timing_method(TimingMethod::RealTime);
 
+        let scroller = ScrolledWindow::builder()
+            .hexpand(true)
+            .vexpand(false)
+            .min_content_height(500)
+            .height_request(500)
+            .css_classes(["no-background"])
+            .kinetic_scrolling(true)
+            .build();
+
+        scroller.set_child(Some(&table));
+
         let this = Self {
+            scroller,
             table,
             model,
             timer,
@@ -51,8 +68,8 @@ impl SegmentsEditor {
         reference_this
     }
 
-    pub fn table(&self) -> &ColumnView {
-        &self.table
+    pub fn scroller(&self) -> &ScrolledWindow {
+        &self.scroller
     }
 
     pub fn cancel_changes(&mut self) -> Option<()> {

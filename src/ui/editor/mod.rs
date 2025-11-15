@@ -195,7 +195,7 @@ impl SplitEditor {
             .description("Edit your run segments")
             .build();
 
-        group.add(segment_editor.table());
+        group.add(segment_editor.scroller());
 
         page.add(&group);
 
