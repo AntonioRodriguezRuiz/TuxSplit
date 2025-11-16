@@ -11,7 +11,7 @@ mod imp {
     };
 
     // Segment Row Object
-    #[derive(Default, Properties)]
+    #[derive(Default, Properties, Debug)]
     #[properties(wrapper_type = super::SegmentRow)]
     pub struct SegmentRow {
         #[property(get, set)]

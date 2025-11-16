@@ -2,14 +2,15 @@ use livesplit_core::{Run, Timer, TimingMethod};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use gtk4::{ColumnView, ColumnViewColumn, ScrolledWindow, prelude::*};
+use gtk4::{Box as GtkBox, ColumnView, ColumnViewColumn, ScrolledWindow, prelude::*};
 
 use crate::formatters::time::parse_hms;
+use crate::ui::editor::context::SegmentMoveDirection;
 use crate::ui::editor::row::SegmentRow;
 use crate::ui::editor::{EditorContext, SegmentsModel};
 
 pub struct SegmentsEditor {
-    scroller: ScrolledWindow,
+    container: GtkBox,
     table: ColumnView,
     model: gtk4::SingleSelection,
     timer: Arc<RwLock<Timer>>,
@@ -30,26 +31,33 @@ impl SegmentsEditor {
         let model = gtk4::SingleSelection::new(Some(model_store));
 
         let table = ColumnView::builder()
-            .vscroll_policy(gtk4::ScrollablePolicy::Natural)
             .reorderable(false)
+            .vscroll_policy(gtk4::ScrollablePolicy::Natural)
             .css_classes(["table"])
-            .vexpand(false)
             .build();
 
         let context = EditorContext::new(timer.clone());
         context.set_timing_method(TimingMethod::RealTime);
 
         let scroller = ScrolledWindow::builder()
-            .hexpand(true)
-            .vexpand(true)
             .css_classes(["no-background"])
             .kinetic_scrolling(true)
+            .hexpand(true)
+            .hscrollbar_policy(gtk4::PolicyType::Never)
             .build();
 
         scroller.set_child(Some(&table));
 
+        let container = GtkBox::builder()
+            .orientation(gtk4::Orientation::Horizontal)
+            .spacing(12)
+            .vexpand(true)
+            .hexpand(true)
+            .build();
+        container.append(&scroller);
+
         let this = Self {
-            scroller,
+            container,
             table,
             model,
             timer,
@@ -63,14 +71,17 @@ impl SegmentsEditor {
         let reference_this = Rc::new(this);
         reference_this.setup_columns();
 
+        let controls = reference_this.build_controls();
+        reference_this.container.append(&controls);
+
         reference_this
     }
 
-    pub fn scroller(&self) -> &ScrolledWindow {
-        &self.scroller
+    pub fn container(&self) -> &GtkBox {
+        &self.container
     }
 
-    pub fn cancel_changes(&mut self) -> Option<()> {
+    pub fn cancel_changes(&self) -> Option<()> {
         self.timer
             .write()
             .unwrap()
@@ -88,6 +99,16 @@ impl SegmentsEditor {
         self.table.append_column(&split_time_column);
         self.table.append_column(&segment_time_column);
         self.table.append_column(&best_column);
+        {
+            let ctx = self.context.clone();
+            let weak_this = std::rc::Rc::downgrade(self);
+            ctx.connect_local("run-changed", false, move |_values| {
+                if let Some(this) = weak_this.upgrade() {
+                    this.update_data_model();
+                }
+                None
+            });
+        }
         {
             let ctx = self.context.clone();
             let weak_this = std::rc::Rc::downgrade(self);
@@ -336,7 +357,6 @@ impl SegmentsEditor {
                         let ms = dur.whole_milliseconds();
                         commit(&context_binding, index, ms as i64);
                     }
-                    self_binding.update_data_model();
                 }
             }
         });
@@ -351,5 +371,239 @@ impl SegmentsEditor {
     }
     fn commit_best_time(ctx: &EditorContext, index: usize, ms: i64) {
         ctx.set_best_time_ms(index, ms);
+    }
+
+    // Builds the editor controls (Move split up/down, Add split above, Remove split)
+    fn build_controls(&self) -> gtk4::Box {
+        let controls = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Vertical)
+            .valign(gtk4::Align::Fill)
+            .homogeneous(true)
+            .spacing(6)
+            .width_request(40)
+            .build();
+
+        let move_group = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Vertical)
+            .spacing(0)
+            .homogeneous(true)
+            .valign(gtk4::Align::Fill)
+            .css_classes(["button-group"])
+            .build();
+        {
+            let move_up_button = gtk4::Button::builder()
+                .icon_name("move-up-symbolic")
+                .build();
+            {
+                let context = self.context.clone();
+                let model_binding = self.model.clone();
+                move_up_button.connect_clicked(move |_| {
+                    context
+                        .move_segment(model_binding.selected() as usize, SegmentMoveDirection::Up);
+                    model_binding
+                        .set_selected(std::cmp::max(model_binding.selected().saturating_sub(1), 0));
+                });
+            }
+            let move_down_button = gtk4::Button::builder()
+                .icon_name("move-down-symbolic")
+                .build();
+            {
+                let context = self.context.clone();
+                let model_binding = self.model.clone();
+                move_down_button.connect_clicked(move |_| {
+                    context.move_segment(
+                        model_binding.selected() as usize,
+                        SegmentMoveDirection::Down,
+                    );
+                    model_binding.set_selected(std::cmp::min(
+                        model_binding.selected() + 1,
+                        context.timer().read().unwrap().run().segments().len() as u32 - 1, // At least one segment will be present
+                    ));
+                });
+            }
+            move_group.append(&move_up_button);
+            move_group.append(&move_down_button);
+        }
+
+        let add_group = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Vertical)
+            .spacing(0)
+            .homogeneous(true)
+            .valign(gtk4::Align::Fill)
+            .css_classes(["button-group"])
+            .build();
+        {
+            let add_split_up_button = gtk4::Button::builder()
+                .icon_name("add-above-symbolic")
+                .build();
+            {
+                let context = self.context.clone();
+                let model_binding = self.model.clone();
+                add_split_up_button.connect_clicked(move |_| {
+                    let selected = model_binding.selected(); // We need to capture this before adding, as it will reset to 0
+                    context.add_segment(selected as usize, SegmentMoveDirection::Up);
+                    // We do not move the selection, as the new segment is added where the current one was
+                    model_binding.set_selected(selected);
+                });
+            }
+            let add_split_down_button = gtk4::Button::builder()
+                .icon_name("add-below-symbolic")
+                .build();
+            {
+                let context = self.context.clone();
+                let model_binding = self.model.clone();
+                add_split_down_button.connect_clicked(move |_| {
+                    let selected = model_binding.selected(); // We need to capture this before adding
+                    context.add_segment(selected as usize, SegmentMoveDirection::Down);
+                    model_binding.set_selected(std::cmp::min(
+                        selected + 1,
+                        context.timer().read().unwrap().run().segments().len() as u32 - 1, // At least one segment will be present
+                    ));
+                });
+            }
+            add_group.append(&add_split_up_button);
+            add_group.append(&add_split_down_button);
+        }
+
+        let remove_split_button = gtk4::Button::builder()
+            .icon_name("user-trash-symbolic")
+            .css_classes(["destructive-action"])
+            .build();
+        {
+            let context = self.context.clone();
+            let model_binding = self.model.clone();
+            remove_split_button.connect_clicked(move |_| {
+                let selected = model_binding.selected();
+                context.remove_segment(selected as usize);
+                // We restore the selection
+                model_binding.set_selected(std::cmp::min(
+                    selected,
+                    context.timer().read().unwrap().run().segments().len() as u32 - 1, // At least one segment will be present
+                ));
+            });
+        }
+
+        controls.append(&move_group);
+        controls.append(&add_group);
+        controls.append(&remove_split_button);
+        controls
+    }
+}
+
+#[cfg(test)]
+impl SegmentsEditor {
+    // Test-only helpers to inspect internal model and context without touching UI widgets.
+    pub fn __test_items(&self) -> Vec<SegmentRow> {
+        let mut out = Vec::new();
+        if let Some(model) = self.table.model() {
+            for i in 0..model.n_items() {
+                if let Some(obj) = model.item(i) {
+                    if let Ok(row) = obj.downcast::<SegmentRow>() {
+                        out.push(row);
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    pub fn __test_context(&self) -> EditorContext {
+        self.context.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use livesplit_core::{Run, Segment, Time, TimeSpan, Timer, TimingMethod};
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    fn gtk_test_init() {
+        INIT.call_once(|| {
+            gtk4::init().expect("Failed to init GTK");
+        });
+    }
+
+    fn make_timer_with_run(mut run: Run) -> Arc<RwLock<Timer>> {
+        Arc::new(RwLock::new(Timer::new(run).expect("timer")))
+    }
+
+    fn time_both(rt_secs: i64, gt_secs: i64) -> Time {
+        Time::new()
+            .with_real_time(Some(TimeSpan::from_seconds(rt_secs as f64)))
+            .with_game_time(Some(TimeSpan::from_seconds(gt_secs as f64)))
+    }
+
+    #[gtk4::test]
+    fn cancel_changes_restores_snapshot() {
+        gtk_test_init();
+        // Initial run snapshot
+        let mut run = Run::new();
+        run.set_game_name("Game");
+        run.set_category_name("Any%");
+        run.push_segment(Segment::new("S1"));
+        let timer = make_timer_with_run(run);
+
+        // Build editor (takes snapshot internally)
+        let editor = SegmentsEditor::new(Arc::clone(&timer));
+
+        // Mutate the timer's run
+        {
+            let mut t = timer.write().unwrap();
+            let mut mutated = t.run().clone();
+            mutated.set_game_name("Changed");
+            mutated.set_category_name("ChangedCat");
+            mutated.push_segment(Segment::new("S2"));
+            t.set_run(mutated).expect("set mutated run");
+        }
+
+        // Cancel changes -> should restore to the original snapshot
+        {
+            let editor2 = Rc::clone(&editor);
+            editor2.cancel_changes().expect("cancel to succeed");
+        }
+
+        // Assert restored
+        let t = timer.read().unwrap();
+        assert_eq!(t.run().game_name(), "Game");
+        assert_eq!(t.run().category_name(), "Any%");
+        assert_eq!(t.run().segments().len(), 1);
+        assert_eq!(t.run().segments()[0].name(), "S1");
+    }
+
+    #[gtk4::test]
+    fn timing_method_change_refreshes_model() {
+        gtk_test_init();
+        // Run with one segment; PB split has different RT vs GT
+        let mut run = Run::new();
+        run.set_game_name("Game");
+        run.set_category_name("Any%");
+        let mut s1 = Segment::new("S1");
+        s1.set_personal_best_split_time(time_both(10, 20));
+        run.push_segment(s1);
+
+        let timer = make_timer_with_run(run);
+        let editor = SegmentsEditor::new(Arc::clone(&timer));
+
+        // Initially RealTime -> expect 10.000
+        {
+            let items = editor.__test_items();
+            assert_eq!(items.len(), 1);
+            assert_eq!(items[0].split_time(), "10.000");
+        }
+
+        // Switch to GameTime via the context signal; this should refresh the model
+        editor
+            .__test_context()
+            .set_timing_method(TimingMethod::GameTime);
+
+        // Now expect 20.000 reflected in the model
+        {
+            let items = editor.__test_items();
+            assert_eq!(items.len(), 1);
+            assert_eq!(items[0].split_time(), "20.000");
+        }
     }
 }

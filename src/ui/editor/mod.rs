@@ -23,6 +23,8 @@ impl SplitEditor {
     pub fn new(timer: Arc<RwLock<Timer>>) -> Self {
         let dialog = PreferencesDialog::builder()
             .title("Timer Preferences")
+            .hexpand(true)
+            .width_request(800)
             .build();
 
         let this = Self { dialog, timer };
@@ -196,7 +198,7 @@ impl SplitEditor {
             .build();
 
         let segment_editor = SegmentsEditor::new(Arc::clone(&self.timer));
-        group.add(segment_editor.scroller());
+        group.add(segment_editor.container());
 
         page.add(&group);
 

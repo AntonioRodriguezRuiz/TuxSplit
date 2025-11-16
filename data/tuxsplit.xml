@@ -8,5 +8,9 @@
     <file alias="gears-symbolic.svg">icons/scalable/actions/gears-symbolic.svg</file>
     <file alias="large-brush-symbolic.svg">icons/scalable/actions/large-brush-symbolic.svg</file>
     <file alias="headings-symbolic.svg">icons/scalable/actions/headings-symbolic.svg</file>
+    <file alias="move-up-symbolic.svg">icons/scalable/actions/move-up-symbolic.svg</file>
+    <file alias="move-down-symbolic.svg">icons/scalable/actions/move-down-symbolic.svg</file>
+    <file alias="add-above-symbolic.svg">icons/scalable/actions/add-above-symbolic.svg</file>
+    <file alias="add-below-symbolic.svg">icons/scalable/actions/add-below-symbolic.svg</file>
   </gresource>
 </gresources>
