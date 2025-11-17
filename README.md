@@ -82,7 +82,11 @@ Wayland support will be added when consistant support for global hotkeys through
   - [x] Multi-column splits view (name, time, delta, best segment, etc)
     - [x] Default delta + Comparison
     - [ ] Customizable columns (not sure if will add)
-  - [ ] Split editor/creator
+  - [x] Split editor/creator
+    - [x] Add / Remove splits
+    - [x] Edit split names and default comparison times
+    - [x] Reorder splits (drag-and-drop)
+    - [x] Real time changes with rollback support
   - [ ] Drag-and-drop to open splits
 - [x] Timer
   - [x] Start / Split
