@@ -302,7 +302,12 @@ mod tests {
 
     #[test]
     fn timing_method_signal_emitted_only_on_change() {
-        let timer = make_timer_with_segments(&["A"]);
+        // Initialize global context with a simple run
+        {
+            let mut run = Run::new();
+            run.push_segment(Segment::new("A"));
+            TuxSplitContext::get_instance().set_run(run);
+        }
         let ctx = EditorContext::new();
 
         let counter = Rc::new(Cell::new(0));
@@ -331,7 +336,12 @@ mod tests {
 
     #[test]
     fn set_segment_name_valid_and_out_of_bounds() {
-        let timer = make_timer_with_segments(&["A"]);
+        // Initialize global context
+        {
+            let mut run = Run::new();
+            run.push_segment(Segment::new("A"));
+            TuxSplitContext::get_instance().set_run(run);
+        }
         let ctx = EditorContext::new();
 
         let run_changed = Rc::new(Cell::new(0));
@@ -344,30 +354,34 @@ mod tests {
         // Valid update
         ctx.set_segment_name(0, "NewName".to_owned());
         {
-            let t = timer.read().unwrap();
-            assert_eq!(t.run().segments()[0].name(), "NewName");
+            let t_run = TuxSplitContext::get_instance().get_run();
+            assert_eq!(t_run.segments()[0].name(), "NewName");
         }
         assert_eq!(run_changed.get(), 1);
 
         // Out of bounds: no change, no signal
         ctx.set_segment_name(5, "Nope".to_owned());
         {
-            let t = timer.read().unwrap();
-            assert_eq!(t.run().segments()[0].name(), "NewName");
+            let t_run = TuxSplitContext::get_instance().get_run();
+            assert_eq!(t_run.segments()[0].name(), "NewName");
         }
         assert_eq!(run_changed.get(), 1);
     }
 
     #[test]
     fn split_time_setter_handles_negative_and_updates_rt_only() {
-        let timer = make_timer_with_segments(&["A"]);
+        {
+            let mut run = Run::new();
+            run.push_segment(Segment::new("A"));
+            TuxSplitContext::get_instance().set_run(run);
+        }
         let ctx = EditorContext::new();
 
         // Negative should be ignored
         ctx.set_split_time_ms(0, -10);
         {
-            let t = timer.read().unwrap();
-            let seg = &t.run().segments()[0];
+            let run = TuxSplitContext::get_instance().get_run();
+            let seg = run.segments().first().expect("segment");
             assert!(
                 seg.comparison_timing_method("Personal Best", TimingMethod::RealTime)
                     .is_none()
@@ -382,13 +396,12 @@ mod tests {
         ctx.set_timing_method(TimingMethod::RealTime);
         ctx.set_split_time_ms(0, 1234);
         {
-            let t = timer.read().unwrap();
-            let seg = &t.run().segments()[0];
+            let run = TuxSplitContext::get_instance().get_run();
+            let seg = run.segments().first().expect("segment");
             let rt = seg
                 .comparison_timing_method("Personal Best", TimingMethod::RealTime)
                 .expect("rt pb");
             assert_eq!(rt.to_duration().whole_milliseconds(), 1234);
-            // GT should still be None
             assert!(
                 seg.comparison_timing_method("Personal Best", TimingMethod::GameTime)
                     .is_none()
@@ -399,8 +412,8 @@ mod tests {
         ctx.set_timing_method(TimingMethod::GameTime);
         ctx.set_split_time_ms(0, 2222);
         {
-            let t = timer.read().unwrap();
-            let seg = &t.run().segments()[0];
+            let run = TuxSplitContext::get_instance().get_run();
+            let seg = run.segments().first().expect("segment");
             let gt = seg
                 .comparison_timing_method("Personal Best", TimingMethod::GameTime)
                 .expect("gt pb");
@@ -414,7 +427,11 @@ mod tests {
 
     #[test]
     fn segment_time_setter_handles_negative_and_updates_selected_method() {
-        let timer = make_timer_with_segments(&["A"]);
+        {
+            let mut run = Run::new();
+            run.push_segment(Segment::new("A"));
+            TuxSplitContext::get_instance().set_run(run);
+        }
         let ctx = EditorContext::new();
 
         // Negative ignored
@@ -424,10 +441,9 @@ mod tests {
         ctx.set_timing_method(TimingMethod::RealTime);
         ctx.set_segment_time_ms(0, 1500);
 
-        // Using RunEditor sets the comparison time for PB at that segment for the selected method
         {
-            let t = timer.read().unwrap();
-            let seg = &t.run().segments()[0];
+            let run = TuxSplitContext::get_instance().get_run();
+            let seg = run.segments().first().expect("segment");
             let rt_seg = seg
                 .comparison_timing_method("Personal Best", TimingMethod::RealTime)
                 .expect("rt seg time");
@@ -437,14 +453,18 @@ mod tests {
 
     #[test]
     fn best_time_setter_handles_negative_out_of_bounds_and_updates_method() {
-        let timer = make_timer_with_segments(&["A"]);
+        {
+            let mut run = Run::new();
+            run.push_segment(Segment::new("A"));
+            TuxSplitContext::get_instance().set_run(run);
+        }
         let ctx = EditorContext::new();
 
         // Negative ignored
         ctx.set_best_time_ms(0, -1);
         {
-            let t = timer.read().unwrap();
-            let seg = &t.run().segments()[0];
+            let run = TuxSplitContext::get_instance().get_run();
+            let seg = run.segments().first().expect("segment");
             assert_eq!(seg.best_segment_time().real_time, None);
             assert_eq!(seg.best_segment_time().game_time, None);
         }
@@ -456,8 +476,8 @@ mod tests {
         ctx.set_timing_method(TimingMethod::RealTime);
         ctx.set_best_time_ms(0, 3210);
         {
-            let t = timer.read().unwrap();
-            let seg = &t.run().segments()[0];
+            let run = TuxSplitContext::get_instance().get_run();
+            let seg = run.segments().first().expect("segment");
             let best_rt = seg.best_segment_time().real_time.expect("rt best");
             assert_eq!(best_rt.to_duration().whole_milliseconds(), 3210);
             assert!(seg.best_segment_time().game_time.is_none());
@@ -467,8 +487,8 @@ mod tests {
         ctx.set_timing_method(TimingMethod::GameTime);
         ctx.set_best_time_ms(0, 4321);
         {
-            let t = timer.read().unwrap();
-            let seg = &t.run().segments()[0];
+            let run = TuxSplitContext::get_instance().get_run();
+            let seg = run.segments().first().expect("segment");
             let best_gt = seg.best_segment_time().game_time.expect("gt best");
             assert_eq!(best_gt.to_duration().whole_milliseconds(), 4321);
             let best_rt = seg.best_segment_time().real_time.expect("rt best");
@@ -478,7 +498,11 @@ mod tests {
 
     #[test]
     fn run_changed_signal_emitted_on_successful_mutations_only() {
-        let timer = make_timer_with_segments(&["A"]);
+        {
+            let mut run = Run::new();
+            run.push_segment(Segment::new("A"));
+            TuxSplitContext::get_instance().set_run(run);
+        }
         let ctx = EditorContext::new();
 
         let count = Rc::new(Cell::new(0));

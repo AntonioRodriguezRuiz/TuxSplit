@@ -536,7 +536,6 @@ mod tests {
     #[gtk4::test]
     fn timing_method_change_refreshes_model() {
         gtk_test_init();
-        // Run with one segment; PB split has different RT vs GT
         let mut run = Run::new();
         run.set_game_name("Game");
         run.set_category_name("Any%");
@@ -544,7 +543,8 @@ mod tests {
         s1.set_personal_best_split_time(time_both(10, 20));
         run.push_segment(s1);
 
-        let timer = make_timer_with_run(run);
+        crate::context::TuxSplitContext::get_instance().set_run(run);
+
         let context = EditorContext::new();
         let editor = SegmentsEditor::new(context);
 
