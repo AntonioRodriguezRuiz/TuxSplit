@@ -5,7 +5,7 @@ use crate::utils::comparisons::{
 };
 
 use adw::ActionRow;
-use adw::prelude::ActionRowExt as _;
+use adw::prelude::ActionRowExt;
 use glib::Propagation;
 use gtk4::ffi::GTK_ICON_LOOKUP_FORCE_REGULAR;
 use gtk4::{
@@ -376,6 +376,7 @@ impl SegmentRow {
         let row = ActionRow::builder()
             .title(segment.name())
             .hexpand(true)
+            .title_lines(1)
             .build();
 
         if Some(index) == opt_current_segment_index {
