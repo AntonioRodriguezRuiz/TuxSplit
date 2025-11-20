@@ -210,15 +210,11 @@ pub fn previous_split_combined_gold_and_prev_comparison(
         segment_split_time(&segments[k], timer)
     });
 
-    let previous_comparison_duration = last_non_skipped.map_or(time::Duration::ZERO, |k| {
+    let previous_comparison_time = last_non_skipped.map_or(time::Duration::ZERO, |k| {
         segment_comparison_time(&segments[k], timer)
     });
 
-    (
-        previous_split_time,
-        combined_gold,
-        previous_comparison_duration,
-    )
+    (previous_split_time, combined_gold, previous_comparison_time)
 }
 
 #[cfg(test)]

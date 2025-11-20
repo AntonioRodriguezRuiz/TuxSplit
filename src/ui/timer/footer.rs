@@ -1,7 +1,8 @@
 use crate::config::Config;
 use crate::formatters::label::format_label;
 use crate::ui::info::{
-    AdditionalInfo, BestPossibleTimeInfo, PrevSegmentBestInfo, PrevSegmentDiffInfo,
+    AdditionalInfo, BestPossibleTimeInfo, PossibleTimeSaveInfo, PrevSegmentBestInfo,
+    PrevSegmentDiffInfo,
 };
 
 use glib;
@@ -88,6 +89,7 @@ impl AdditionalInfoFooter {
             Box::new(PrevSegmentDiffInfo::new(timer, config)),
             Box::new(PrevSegmentBestInfo::new(timer, config)),
             Box::new(BestPossibleTimeInfo::new(timer, config)),
+            Box::new(PossibleTimeSaveInfo::new(timer, config)),
         ];
 
         // additional_info.push();

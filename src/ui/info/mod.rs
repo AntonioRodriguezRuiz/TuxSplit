@@ -1,8 +1,9 @@
 use crate::config::Config;
 use crate::utils::comparisons::{
     best_comparison_values, best_segment_duration, classify_split_label,
-    current_attempt_running_duration, format_signed, previous_comparison_values, real_time_sob,
-    segment_best_time, segment_comparison_time, segment_split_time,
+    current_attempt_running_duration, format_signed, previous_comparison_values,
+    previous_split_combined_gold_and_prev_comparison, real_time_sob, segment_best_time,
+    segment_comparison_time, segment_split_time,
 };
 
 use gtk4::{CenterBox, Label, Orientation::Horizontal, prelude::WidgetExt};
@@ -19,19 +20,36 @@ pub trait AdditionalInfo {
 
 pub struct PrevSegmentDiffInfo {
     container: CenterBox,
-    label: Label,
     value: Label,
 }
 
 pub struct PrevSegmentBestInfo {
     container: CenterBox,
-    label: Label,
     value: Label,
 }
 
 pub struct BestPossibleTimeInfo {
     container: CenterBox,
-    label: Label,
+    value: Label,
+}
+
+pub struct PossibleTimeSaveInfo {
+    container: CenterBox,
+    value: Label,
+}
+
+pub struct CurrentPaceInfo {
+    container: CenterBox,
+    value: Label,
+}
+
+pub struct PbChanceInfo {
+    container: CenterBox,
+    value: Label,
+}
+
+pub struct TotalPlaytimeInfo {
+    container: CenterBox,
     value: Label,
 }
 
@@ -48,11 +66,7 @@ impl AdditionalInfo for PrevSegmentDiffInfo {
         container.set_start_widget(Some(&label));
         container.set_end_widget(Some(&value));
 
-        let mut res = Self {
-            container,
-            label,
-            value,
-        };
+        let mut res = Self { container, value };
 
         res.update(timer, config); // Initialize with default timer state
 
@@ -128,11 +142,7 @@ impl AdditionalInfo for PrevSegmentBestInfo {
         container.set_start_widget(Some(&label));
         container.set_end_widget(Some(&value));
 
-        let mut res = Self {
-            container,
-            label,
-            value,
-        };
+        let mut res = Self { container, value };
 
         res.update(timer, config); // Initialize with default timer state
 
@@ -208,11 +218,7 @@ impl AdditionalInfo for BestPossibleTimeInfo {
         container.set_start_widget(Some(&label));
         container.set_end_widget(Some(&value));
 
-        let mut res = Self {
-            container,
-            label,
-            value,
-        };
+        let mut res = Self { container, value };
 
         res.update(timer, config); // Initialize with default timer state
 
@@ -261,6 +267,59 @@ impl AdditionalInfo for BestPossibleTimeInfo {
                     .format_duration(&current_attempt_running_duration(timer))
                     .as_str(),
             );
+        }
+    }
+
+    fn container(&self) -> &CenterBox {
+        &self.container
+    }
+}
+
+impl AdditionalInfo for PossibleTimeSaveInfo {
+    fn new(timer: &Timer, config: &Config) -> Self {
+        let container = CenterBox::builder().orientation(Horizontal).build();
+
+        let label = Label::builder()
+            .label("Possible Time Save:")
+            .css_classes(["heading"])
+            .build();
+        let value = Label::builder().label("").css_classes(["timer"]).build();
+
+        container.set_start_widget(Some(&label));
+        container.set_end_widget(Some(&value));
+
+        let mut res = Self { container, value };
+
+        res.update(timer, config); // Initialize with default timer state
+
+        res
+    }
+
+    fn update(&mut self, timer: &Timer, config: &Config) {
+        if timer.current_phase().is_not_running() {
+            self.value.set_label("");
+        } else if timer.current_phase().is_running() || timer.current_phase().is_paused() {
+            let index = timer.current_split_index().unwrap_or(0);
+
+            let (_, combined_gold, previous_comparion_time) =
+                previous_split_combined_gold_and_prev_comparison(timer, index);
+            let current_comparison_time = segment_comparison_time(
+                timer.current_split().unwrap_or(timer.run().segment(0)),
+                timer,
+            );
+
+            // Diff from gold to comp. This is the possible time save
+            tracing::debug!("{:?}", current_comparison_time);
+            let gold_diff = current_comparison_time
+                .checked_sub(previous_comparion_time)
+                .unwrap_or_default()
+                .checked_sub(combined_gold)
+                .unwrap_or_default();
+
+            self.value
+                .set_label(config.format.segment.format_duration(&gold_diff).as_str());
+        } else if timer.current_phase().is_ended() {
+            self.value.set_label("");
         }
     }
 
